@@ -27,7 +27,7 @@ export function Loader() {
             <span className="font-serif text-4xl font-semibold tracking-[0.4em] text-foreground sm:text-5xl">
               ELLAMAE
             </span>
-            <span className="mt-3 text-[11px] tracking-[0.5em] text-gold">LUXURY GIFTING</span>
+            <span className="mt-3 text-[11px] tracking-[0.5em] text-gold">EVERY GIFT, EVERY OCCASION</span>
 
             <div className="mt-8 h-px w-48 overflow-hidden bg-border">
               <motion.div

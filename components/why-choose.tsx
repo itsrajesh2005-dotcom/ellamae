@@ -1,33 +1,34 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Gem, Sparkles, PenLine, Gift, Truck, Building2 } from "lucide-react"
+import { LayoutGrid, PenTool, Award, PackageCheck, Tags, Headphones } from "lucide-react"
 import { Reveal } from "./reveal"
 
 const features = [
-  { icon: Gem, title: "Premium Quality", desc: "Only the finest materials and makers, vetted for lasting beauty." },
-  { icon: Sparkles, title: "Curated Collections", desc: "Every piece hand-selected by our in-house gifting stylists." },
-  { icon: PenLine, title: "Personalized Gifts", desc: "Monograms, notes and bespoke touches that feel truly theirs." },
-  { icon: Gift, title: "Elegant Packaging", desc: "Signature boxes and ribbons that make unwrapping a moment." },
-  { icon: Truck, title: "Doorstep Delivery", desc: "White-glove delivery, beautifully on time, every time." },
-  { icon: Building2, title: "Corporate Gifting", desc: "Refined gifting at scale for the clients you cherish most." },
+  { icon: LayoutGrid, title: "Wide Product Collection", desc: "Hundreds of gift options for every age, occasion, and budget." },
+  { icon: PenTool, title: "Customization Available", desc: "Add names, logos, photos, messages, and unique designs." },
+  { icon: Award, title: "Quality Products", desc: "Carefully selected products with attention to detail." },
+  { icon: PackageCheck, title: "Bulk Order Support", desc: "Suitable for events, celebrations, schools, organizations, and businesses." },
+  { icon: Tags, title: "Affordable Pricing", desc: "Beautiful gifts that fit every budget." },
+  { icon: Headphones, title: "Dedicated Customer Support", desc: "We're here to help you find the perfect gift." },
 ]
 
 export function WhyChoose() {
   return (
-    <section id="why" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-10">
+    <section id="why" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-10 bg-white">
+      {/* <section id="why" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-10"> */}
       <div className="grid gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <Reveal>
-          <div className="mx-auto max-w-[320px] max-h-[400px] overflow-hidden rounded-[2rem] border border-gold/15 shadow-[0_20px_60px_rgba(180,140,90,0.12)]">
-            <img src="/story.png" alt="Artisan tying a ribbon on a luxury gift box" className="h-full w-full object-cover" />
+          <div className="mx-auto  overflow-hidden rounded-[2rem] border border-gold/15 shadow-[0_20px_60px_rgba(180,140,90,0.12)]">
+            <img src="/ellamaegift.webp" alt="Artisan tying a ribbon on a luxury gift box" className="h-full w-full object-cover" />
           </div>
         </Reveal>
 
         <div>
           <Reveal>
-            <span className="text-xs tracking-[0.4em] text-gold">WHY ELLAMAE</span>
-            <h2 className="mt-4 text-balance font-serif text-4xl font-light text-foreground sm:text-5xl">
-              The art of giving, <span className="italic text-gold">elevated</span>
+            <span className="text-xs tracking-[0.4em] text-gold uppercase font-semibold">Why Choose Us</span>
+            <h2 className="mt-4 text-balance font-serif text-3xl font-medium text-black sm:text-5xl">
+              Making Gifting <span className="italic text-gold">Simple and Memorable</span>
             </h2>
           </Reveal>
 
@@ -35,12 +36,12 @@ export function WhyChoose() {
             {features.map((f, i) => (
               <Reveal key={f.title} delay={(i % 2) * 0.08}>
                 <motion.div whileHover={{ y: -4 }} className="flex gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-accent text-gold">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/5 text-gold">
                     <f.icon className="h-5 w-5" />
                   </span>
                   <div>
-                    <h3 className="font-serif text-xl font-medium text-foreground">{f.title}</h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+                    <h3 className="font-serif text-lg font-bold text-black">{f.title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-black/80">{f.desc}</p>
                   </div>
                 </motion.div>
               </Reveal>
