@@ -24,9 +24,11 @@ export function Loader() {
             transition={{ duration: 1 }}
             className="flex flex-col items-center"
           >
-            <span className="font-serif text-4xl font-semibold tracking-[0.4em] text-foreground sm:text-5xl">
-              ELLAMAE
-            </span>
+            <img
+              src="/logo.jpeg"
+              alt="Ellamae Logo"
+              className="h-40 w-auto object-contain rounded-md"
+            />
             <span className="mt-3 text-[11px] tracking-[0.5em] text-gold">EVERY GIFT, EVERY OCCASION</span>
 
             <div className="mt-8 h-px w-48 overflow-hidden bg-border">

@@ -7,14 +7,14 @@ import { Reveal } from "./reveal"
 const steps = [
   { icon: Search, title: "Browse Products", desc: "Explore our collection by category or occasion." },
   { icon: Heart, title: "Choose Your Favorite Items", desc: "Select products that match your needs." },
-  { icon: MessageCircle, title: "Send an Enquiry", desc: "Contact us instantly through WhatsApp." },
+  { icon: MessageCircle, title: "Enquiry Through WhatsApp", desc: "Contact us instantly through WhatsApp." },
   { icon: UserCheck, title: "Get Personalized Assistance", desc: "Receive pricing, customization options, and recommendations." },
   { icon: CheckCircle2, title: "Place Your Order", desc: "Confirm your requirements and let us handle the rest." },
 ]
 
 export function HowItWorks() {
   return (
-    <section className="relative overflow-hidden bg-[#2a0812] py-24 sm:py-32">
+    <section id="how-it-works" className="relative overflow-hidden bg-[#2a0812] py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
         <Reveal>
           <div className="text-center">
