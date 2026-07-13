@@ -1,15 +1,25 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, X, ChevronDown, Check, ChevronRight, Sparkles, Maximize2 } from "lucide-react"
+import { Search, ChevronDown, Check, Sparkles, Maximize2, ChevronRight, X } from "lucide-react"
 import type { Product } from "@/data/products"
 import type { Category } from "@/data/categories"
 
 // ─── WhatsApp Button ─────────────────────────────────────────────────────────
 const WHATSAPP_NUMBER = "919790666769"
+const viewLabels = ["F", "L", "R", "B"]
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(price)
+}
 
 function WhatsAppIcon() {
   return (
@@ -41,7 +51,7 @@ function SkeletonCard() {
 interface ProductCardProps {
   product: Product
   index: number
-  onImageClick: (img: string, name: string) => void
+  onImageClick: (product: Product) => void
 }
 
 function ProductCard({ product, index, onImageClick }: ProductCardProps) {
@@ -60,8 +70,8 @@ function ProductCard({ product, index, onImageClick }: ProductCardProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.45, delay: Math.min(index * 0.04, 0.24), ease: [0.22, 1, 0.36, 1] }}
-      className="group relative overflow-hidden rounded-[20px] bg-white shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1 cursor-zoom-in"
-      onClick={() => onImageClick(product.image, product.name)}
+      className="group relative overflow-hidden rounded-[20px] bg-white shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+      onClick={() => onImageClick(product)}
     >
       <div className="aspect-[4/4] relative overflow-hidden w-full">
         <Image
@@ -174,18 +184,7 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
   const [search, setSearch] = useState("")
   const [sort, setSort] = useState<SortOption>("featured")
   const [loading] = useState(false)
-
-  // Lightbox State
-  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null)
-
-  // ESC key handler for lightbox
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightbox(null)
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  const router = useRouter()
 
   const filtered = useMemo(() => {
     let result = [...initialProducts]
@@ -253,7 +252,7 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto max-w-7xl px-6 pt-14 pb-0 lg:px-16 bg-rose-50"
+        className=" px-6 pt-14 pb-0 lg:px-16 bg-rose-50"
       >
         <div className="flex flex-col gap-6 border-b border-gold/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
           <p className="max-w-2xl text-base leading-relaxed text-black">
@@ -266,7 +265,7 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
       </motion.div> */}
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-7xl px-6 pt-8 pb-6 lg:px-10 bg-rose-50">
+      <div className=" px-6 pt-8 pb-6 lg:px-10 bg-rose-50">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           {/* Search */}
           <div className="relative flex max-w-md w-full items-center rounded-full border border-gold/20 bg-white backdrop-blur-md px-5 py-2.5 transition-all duration-300 focus-within:border-gold focus-within:shadow-[0_0_15px_rgba(212,175,55,0.12)]">
@@ -279,7 +278,11 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
               className="w-full bg-white text-sm text-black placeholder:text-black/50 outline-none"
             />
             {search && (
-              <button onClick={() => setSearch("")} className="ml-2 text-muted-foreground/50 hover:text-gold transition-colors">
+              <button
+                onClick={() => setSearch("")}
+                className="ml-2 text-muted-foreground/50 hover:text-gold transition-colors"
+                aria-label="Clear search"
+              >
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -290,7 +293,7 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
       </div>
 
       {/* ── Product Grid ─────────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-7xl px-6 pb-24 lg:px-10 bg-rose-50">
+      <div className=" px-6 pb-24 lg:px-10 bg-rose-50">
         {loading ? (
           /* Skeleton */
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -304,7 +307,7 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
                   key={product.id}
                   product={product}
                   index={i}
-                  onImageClick={(url, name) => setLightbox({ url, name })}
+                  onImageClick={(selectedProduct) => router.push(`/products/${selectedProduct.id}`)}
                 />
               ))}
             </AnimatePresence>
@@ -370,54 +373,6 @@ export function CollectionPageClient({ category, initialProducts }: CollectionPa
         )}
       </div>
 
-      {/* ── Premium Lightbox Modal for Products ─────────────────────────────────── */}
-      <AnimatePresence>
-        {lightbox && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setLightbox(null)}
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-10 cursor-zoom-out"
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setLightbox(null)}
-              className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors duration-300 p-2 cursor-pointer z-[110]"
-              aria-label="Close image lightbox"
-            >
-              <X className="h-8 w-8 stroke-[1.5]" />
-            </button>
-
-            {/* Modal Content Wrapper */}
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 26 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative max-w-3xl max-h-[75vh] w-full h-full flex items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.6)] cursor-default bg-zinc-950/20"
-            >
-              <img
-                src={lightbox.url}
-                alt={lightbox.name}
-                className="max-w-full max-h-full object-contain"
-              />
-            </motion.div>
-
-            {/* Product Title in Lightbox */}
-            <motion.h4
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.1 }}
-              className="mt-6 text-center text-ivory font-serif text-2xl tracking-wide max-w-xl"
-            >
-              {lightbox.name}
-            </motion.h4>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

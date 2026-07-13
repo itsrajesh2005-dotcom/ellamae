@@ -25,11 +25,11 @@ export function Loader() {
             className="flex flex-col items-center"
           >
             <img
-              src="/logo.jpeg"
+              src="/logo.png"
               alt="Ellamae Logo"
               className="h-40 w-auto object-contain rounded-md"
             />
-            <span className="mt-3 text-[11px] tracking-[0.5em] text-gold">EVERY GIFT, EVERY OCCASION</span>
+            <span className="mt-3 text-[11px] tracking-[0.5em] text-gold">EVERY GIFT . EVERY OCCASION</span>
 
             <div className="mt-8 h-px w-48 overflow-hidden bg-border">
               <motion.div

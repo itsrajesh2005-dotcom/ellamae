@@ -15,8 +15,8 @@ const features = [
 
 export function WhyChoose() {
   return (
-    <section id="why" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-10 bg-white">
-      {/* <section id="why" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-10"> */}
+    <section id="why" className="relative  px-6 py-28 lg:px-10 bg-white">
+      {/* <section id="why" className="relative  px-6 py-28 lg:px-10"> */}
       <div className="grid gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <Reveal>
           <div className="mx-auto  overflow-hidden rounded-[2rem] border border-gold/15 shadow-[0_20px_60px_rgba(180,140,90,0.12)]">

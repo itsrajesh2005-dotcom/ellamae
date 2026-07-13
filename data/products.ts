@@ -6,6 +6,8 @@ export interface Product {
   image: string
   description: string
   tag?: string
+  galleryImages?: string[]
+  details?: string[]
 }
 
 export const CATEGORIES = [
@@ -48,6 +50,13 @@ export const products: Product[] = [
     image: "https://images.unsplash.com/photo-1535141192574-5d4897c13636?w=600&auto=format&fit=crop&q=80",
     description: "Gourmet double-chocolate velvet cake styled with premium wax candles and standard florals.",
     tag: "Bestseller",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1535141192574-5d4897c13636?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1519869325930-281384150729?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=1200&auto=format&fit=crop&q=80",
+    ],
+    details: ["Luxury cake hamper with premium candles and florals", "Perfect for birthday surprises and milestone celebrations", "Includes a handwritten celebration note and festive wrap"],
   },
   {
     id: 2,
@@ -57,6 +66,13 @@ export const products: Product[] = [
     image: "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?w=600&auto=format&fit=crop&q=80",
     description: "Includes sparkling cider, gold champagne flutes, and handcrafted luxury truffles.",
     tag: "Premium",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1483695028939-5bb13f8648b0?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=1200&auto=format&fit=crop&q=80",
+    ],
+    details: ["Curated celebration box with premium sparkling drinks", "Includes gold-trimmed flutes and fine artisan chocolates", "Ideal for elegant birthday evenings and dinner parties"],
   },
   {
     id: 3,
@@ -65,6 +81,13 @@ export const products: Product[] = [
     price: 7800,
     image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=600&auto=format&fit=crop&q=80",
     description: "Hand-blown crystal wine decanter with dual matching tumblers for fine spirits.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1517705008128-361805f42e86?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=1200&auto=format&fit=crop&q=80",
+    ],
+    details: ["Crafted crystal decanter with premium matching tumblers", "Elegant statement piece for celebrations and hosting", "Arrives in a signature velvet presentation box"],
   },
   {
     id: 25,
@@ -74,6 +97,13 @@ export const products: Product[] = [
     image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=600&auto=format&fit=crop&q=80",
     description: "Artisanal rose-infused serums, face mist, and a genuine rose quartz facial roller.",
     tag: "New",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=1200&auto=format&fit=crop&q=80",
+    ],
+    details: ["Skin-loving rose-infused formulas with a luxury finish", "Includes a rose quartz roller for a calming self-care ritual", "A thoughtful birthday gift for wellness lovers"],
   },
   {
     id: 26,
@@ -82,6 +112,13 @@ export const products: Product[] = [
     price: 6400,
     image: "https://images.unsplash.com/photo-1541643600914-78b084683702?w=600&auto=format&fit=crop&q=80",
     description: "Premium Iranian saffron, Himalayan honey, and gold-flaked dark chocolates in a lacquer box.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1541643600914-78b084683702?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=1200&auto=format&fit=crop&q=80",
+    ],
+    details: ["A rich mix of saffron, honey, and premium chocolates", "Presented in a lacquer-finished box with gold detailing", "Perfect for special birthdays and celebratory gifting"],
   },
   {
     id: 27,
@@ -91,6 +128,13 @@ export const products: Product[] = [
     image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600&auto=format&fit=crop&q=80",
     description: "Professional-grade brass-finished telescope with star map and leather carrying case.",
     tag: "Limited",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1477281765962-ef34e8bb0967?w=1200&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=1200&auto=format&fit=crop&q=80",
+    ],
+    details: ["Brass-finished telescope with premium leather case", "Comes with a star map and celebration starter guide", "A memorable gift for curious minds and stargazers"],
   },
 
   // ─── Anniversary Gifts (6) ─────────────────────────────────────────────────

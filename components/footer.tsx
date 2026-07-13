@@ -75,7 +75,7 @@ export function Footer() {
         <div className="grid gap-10 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
             <Link href="/" className="inline-block">
-              <img src="/logo.jpeg" alt="Ellamae Logo" className="h-34 w-auto object-contain rounded-sm" />
+              <img src="/logo.png" alt="Ellamae Logo" className="h-34 w-auto object-contain rounded-sm" />
               
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/55">
