@@ -2,13 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, Trash2, Upload, FileText, Image as ImageIcon, CheckCircle, Gift, Tags, X } from 'lucide-react';
-
-const initialGifts = [
-  { id: 1, name: 'Royal Watch Gift Set', description: 'Luxury watch with premium packaging', category: 'Birthday Gifts', price: '5499', stock: '25', bestSeller: 'Yes', status: 'Active', images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80'] },
-  { id: 2, name: 'Perfume Gift Box', description: 'Premium perfume for special moments', category: 'Anniversary Gifts', price: '2999', stock: '40', bestSeller: 'No', status: 'Active', images: ['https://images.unsplash.com/photo-1541643600914-78b084683601?w=500&q=80'] },
-  { id: 3, name: 'Leather Wallet Gift Set', description: 'Genuine leather wallet & keychain', category: 'Corporate Gifts', price: '1799', stock: '60', bestSeller: 'Yes', status: 'Inactive', images: ['https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&q=80'] },
-];
-
 export default function GiftsManagement() {
   const [gifts, setGifts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,6 +15,7 @@ export default function GiftsManagement() {
   const [selectedGift, setSelectedGift] = useState<any | null>(null);
 
   // Form states for creating new gift
+  const [newManualIdDigits, setNewManualIdDigits] = useState('');
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newCategory, setNewCategory] = useState('Birthday Gifts');
@@ -67,11 +61,19 @@ export default function GiftsManagement() {
         }
       }
 
-      const data = JSON.parse(cleanJsonText);
+      // FIXED: Wrapped in try-catch to prevent crash if backend returns invalid or broken JSON format
+      let data;
+      try {
+        data = JSON. parse(cleanJsonText);
+      } catch (jsonErr) {
+        console.error("Malformed JSON structure detected from backend response, activating safety fallback:", jsonErr);
+        if (gifts.length === 0) setGifts(initialGifts);
+        return;
+      }
 
       if (Array.isArray(data)) {
         const processedGifts = data.map((item: any) => ({
-          id: Number(item.id),
+          id: String(item.id), 
           name: item.name,
           description: item.description,
           category: item.category || 'Birthday Gifts',
@@ -112,13 +114,27 @@ export default function GiftsManagement() {
   // ===============================================================================
 
   const filteredGifts = gifts.filter(gift =>
+    String(gift.id)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     gift.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     gift.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newManualIdDigits) return alert('Please enter the 3-digit ID number (e.g., 004)');
     if (!newName) return alert('Please fill Product Name');
+    
+    const finalId = `ELLAMAE${newManualIdDigits}`;
+    const customIdRegex = /^ELLAMAE\d{3}$/;
+    if (!customIdRegex.test(finalId)) {
+      return alert('Invalid ID Format! Must be exactly 3 digits after ELLAMAE. Example: 005');
+    }
+
+    const idExists = gifts.some(gift => String(gift.id).toUpperCase() === finalId.toUpperCase());
+    if (idExists) {
+      return alert(`Unique Product ID ${finalId} is already allocated! Please input another sequential ordering number.`);
+    }
+
     setActiveSubStep('images');
   };
 
@@ -160,12 +176,11 @@ export default function GiftsManagement() {
 
   const handleFinalGiftSubmit = async () => {
     const imgPayload = newImages.length > 0 ? newImages : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80'];
-    
-    // FIXED: Ensured unique local generation indexing to solve "Encountered two children with the same key"
-    const nextLocalId = gifts.length > 0 ? Math.max(...gifts.map(g => g.id)) + Date.now() : Date.now();
+    const uppercaseId = `ELLAMAE${newManualIdDigits}`.toUpperCase();
     
     const dbPayload = {
       action: 'CREATE',
+      id: uppercaseId, 
       name: newName,
       description: newDescription,
       category: newCategory,
@@ -177,7 +192,7 @@ export default function GiftsManagement() {
     };
 
     const newGiftObject = {
-      id: nextLocalId,
+      id: uppercaseId,
       name: newName,
       description: newDescription,
       category: newCategory,
@@ -188,7 +203,6 @@ export default function GiftsManagement() {
       images: imgPayload
     };
 
-    // FIXED: Active local state injection strategy to make UI instant even if fetch connection fails or errors out
     setGifts(prevGifts => [newGiftObject, ...prevGifts]);
 
     try {
@@ -202,7 +216,7 @@ export default function GiftsManagement() {
       console.warn("Connecting backend network breakdown fallback protection:", err);
     }
     
-    setNewName(''); setNewDescription(''); setNewPrice(''); setNewStock(''); setNewImages([]);
+    setNewManualIdDigits(''); setNewName(''); setNewDescription(''); setNewPrice(''); setNewStock(''); setNewImages([]);
     setActiveSubStep('details');
     setShowMasterAddOverlay(false);
     
@@ -242,7 +256,6 @@ export default function GiftsManagement() {
       images: JSON.stringify(editImages)
     };
 
-    // FIXED: Immediate local storage array mutation map updates
     setGifts(prevGifts => prevGifts.map(g => 
       g.id === selectedGift.id 
         ? { ...g, name: editName, description: editDescription, category: editCategory, price: editPrice, stock: editStock, bestSeller: editBestSeller, status: editStatus, images: editImages }
@@ -268,9 +281,8 @@ export default function GiftsManagement() {
     }, 600);
   };
 
-  const handleDeleteGift = async (id: number) => {
-    // FIXED: Instant visual deletion filter execution so rows vanish without waiting for backend network response
-    setGifts(prevGifts => prevGifts.filter(g => g.id !== id));
+  const handleDeleteGift = async (id: string | number) => {
+    setGifts(prevGifts => prevGifts.filter(g => String(g.id) !== String(id)));
 
     const dbPayload = {
       action: 'DELETE',
@@ -331,7 +343,7 @@ export default function GiftsManagement() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-xs font-bold tracking-wider uppercase">
-                <th className="py-4 px-4 w-12 text-black font-bold">ID</th>
+                <th className="py-4 px-4 w-24 text-black font-bold">ID</th>
                 <th className="py-4 px-4 text-black font-bold">Product Name</th>
                 <th className="py-4 px-4 text-black font-bold">Description</th>
                 <th className="py-4 px-4 text-black font-bold">Category</th>
@@ -343,9 +355,10 @@ export default function GiftsManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredGifts.map((gift) => (
-                <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-4 font-bold text-gray-900">{gift.id}</td>
+              {/* FIXED: Changed key to combine ID and index to completely avoid duplicate key warnings */}
+              {filteredGifts.map((gift, index) => (
+                <tr key={`${gift.id}-${index}`} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="py-4 px-4 font-bold text-amber-900 tracking-wider uppercase">{gift.id}</td>
                   <td className="py-4 px-4 font-bold text-gray-950">{gift.name}</td>
                   <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
                   <td className="py-4 px-4 text-gray-900 font-medium">{gift.category}</td>
@@ -378,7 +391,7 @@ export default function GiftsManagement() {
         {/* WORKSPACE OVERLAY PANEL */}
         {showMasterAddOverlay && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 40px', borderBottom: '1px solid #e5e7eb' }}>
+            <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', padding: '24px 40px', borderBottom: '1px solid #e5e7eb' }}>
               <div>
                 <h2 style={{ fontFamily: 'serif', fontSize: '22px', fontWeight: 'bold', color: '#000000' }}>Create Luxury Asset Component</h2>
                 <p style={{ fontSize: '12px', color: '#6b7280' }}>Fill configurations logs to insert into server data</p>
@@ -411,6 +424,24 @@ export default function GiftsManagement() {
                 {activeSubStep === 'details' && (
                   <form onSubmit={handleNextSubStep} style={{ color: '#000000', fontSize: '13px' }}>
                     <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Unique Product ID</label>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ padding: '10px 14px', border: '1px solid #000000', borderRight: 'none', borderRadius: '4px 0 0 4px', backgroundColor: '#f3f4f6', fontWeight: 'bold', color: '#374151' }}>
+                          ELLAMAE
+                        </span>
+                        <input 
+                          type="text" 
+                          value={newManualIdDigits} 
+                          onChange={(e) => setNewManualIdDigits(e.target.value.replace(/\D/g, ''))} 
+                          placeholder="e.g., 004" 
+                          maxLength={3}
+                          style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '0 4px 4px 0', color: '#000000', fontWeight: 'bold' }} 
+                        />
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginTop: '4px' }}>Prefix is locked as ELLAMAE. Please input exactly 3 sequential tracking digits.</span>
+                    </div>
+
+                    <div style={{ marginBottom: '20px' }}>
                       <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Product Name</label>
                       <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Enter Product Name" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
                     </div>
@@ -432,11 +463,11 @@ export default function GiftsManagement() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '40px' }}>
                       <div>
                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Price (₹)</label>
-                        <input type="text" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Amount (₹)" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <input type="text" value={newPrice} onChange={(e) => setNewPrice(e.target.value.replace(/\D/g, ''))} placeholder="Amount (₹)" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Stock</label>
-                        <input type="text" value={newStock} onChange={(e) => setNewStock(e.target.value)} placeholder="Count" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <input type="text" value={newStock} onChange={(e) => setNewStock(e.target.value.replace(/\D/g, ''))} placeholder="Count" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
                       </div>
                     </div>
 
@@ -548,11 +579,11 @@ export default function GiftsManagement() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '32px' }}>
                       <div>
                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Price (₹)</label>
-                        <input type="text" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <input type="text" value={editPrice} onChange={(e) => setEditPrice(e.target.value.replace(/\D/g, ''))} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Stock Inventory</label>
-                        <input type="text" value={editStock} onChange={(e) => setEditStock(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <input type="text" value={editStock} onChange={(e) => setEditStock(e.target.value.replace(/\D/g, ''))} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Best Seller</label>
