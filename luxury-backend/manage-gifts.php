@@ -59,25 +59,50 @@ try {
         // Strip out the prefix if the user searches for "ELLAMAE15" so it searches the numeric column for just "15"
         $searchId = str_replace("ELLAMAE", "", $search);
 
-        if ($search != "") {
-            // Secure prepared statement searching title, description, or the numeric ID field
-            $sql = "SELECT g.*, gi.image_path 
-                    FROM gifts g 
-                    LEFT JOIN gift_images gi ON g.id = gi.gift_id 
-                    WHERE g.title LIKE ? OR g.description LIKE ? OR g.id = ?
-                    ORDER BY g.id DESC";
-            
-            $stmt = $conn->prepare($sql);
-            if ($stmt) {
-                $searchParam = "%" . $search . "%";
-                $stmt->bind_param("sss", $searchParam, $searchParam, $searchId);
+        $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
+
+        if ($statusParam !== 'all') {
+            if ($search != "") {
+                $sql = "SELECT g.*, gi.image_path 
+                        FROM gifts g 
+                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+                        WHERE g.status = ? AND (g.title LIKE ? OR g.description LIKE ? OR g.id = ?)
+                        ORDER BY g.id DESC";
+                $stmt = $conn->prepare($sql);
+                if ($stmt) {
+                    $searchParam = "%" . $search . "%";
+                    $stmt->bind_param("ssss", $statusParam, $searchParam, $searchParam, $searchId);
+                }
+            } else {
+                $sql = "SELECT g.*, gi.image_path 
+                        FROM gifts g 
+                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+                        WHERE g.status = ?
+                        ORDER BY g.id DESC";
+                $stmt = $conn->prepare($sql);
+                if ($stmt) {
+                    $stmt->bind_param("s", $statusParam);
+                }
             }
         } else {
-            $sql = "SELECT g.*, gi.image_path 
-                    FROM gifts g 
-                    LEFT JOIN gift_images gi ON g.id = gi.gift_id 
-                    ORDER BY g.id DESC";
-            $stmt = $conn->prepare($sql);
+            if ($search != "") {
+                $sql = "SELECT g.*, gi.image_path 
+                        FROM gifts g 
+                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+                        WHERE g.title LIKE ? OR g.description LIKE ? OR g.id = ?
+                        ORDER BY g.id DESC";
+                $stmt = $conn->prepare($sql);
+                if ($stmt) {
+                    $searchParam = "%" . $search . "%";
+                    $stmt->bind_param("sss", $searchParam, $searchParam, $searchId);
+                }
+            } else {
+                $sql = "SELECT g.*, gi.image_path 
+                        FROM gifts g 
+                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+                        ORDER BY g.id DESC";
+                $stmt = $conn->prepare($sql);
+            }
         }
 
         if ($stmt) {

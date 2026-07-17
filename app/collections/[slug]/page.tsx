@@ -53,11 +53,12 @@ export default async function CollectionPage({ params }: Props) {
   let categoryName = SLUG_CATEGORY[slug] ?? null
 
   const categoryProducts =
-    slug === "festive-gift-hampers"
+    (slug === "festive-gift-hampers"
       ? products.filter((p) => p.category === "Gift Hampers" || p.category === "Festive Gift Hampers")
       : categoryName
         ? products.filter((p) => p.category === categoryName)
-        : [] // utility-products → empty state
+        : []
+    ).filter((p) => p.status !== "Inactive")
 
   return (
     <>

@@ -7,6 +7,7 @@ export default function GiftsManagement() {
   const [gifts, setGifts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentStatusTab, setCurrentStatusTab] = useState<'Active' | 'Inactive'>('Active');
   
   // Dynamic Master Overlay Form Navigation Setup
   const [showMasterAddOverlay, setShowMasterAddOverlay] = useState(false);
@@ -53,9 +54,9 @@ export default function GiftsManagement() {
   // 2. READ / SEARCH GIFTS WITH BACKEND INTEGRATION 
   const fetchGiftsFromServer = async (search = "") => {
     try {
-      let url = GIFTS_API;
+      let url = `${GIFTS_API}?status=all`;
       if (search) {
-        url += `?search=${encodeURIComponent(search)}`;
+        url += `&search=${encodeURIComponent(search)}`;
       }
       const response = await fetch(url);
       const data = await response.json();
@@ -279,6 +280,30 @@ export default function GiftsManagement() {
           </button>
         </div>
 
+        {/* Status Toggle Buttons */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setCurrentStatusTab('Active')}
+            className={`px-4 py-2 text-xs font-bold rounded border transition-all ${
+              currentStatusTab === 'Active'
+                ? 'bg-black text-white border-black'
+                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setCurrentStatusTab('Inactive')}
+            className={`px-4 py-2 text-xs font-bold rounded border transition-all ${
+              currentStatusTab === 'Inactive'
+                ? 'bg-black text-white border-black'
+                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Inactive
+          </button>
+        </div>
+
         {/* Dynamic Context Search Element */}
         <div className="relative max-w-md mb-6 flex items-center">
           <Search size={16} className="text-gray-500 absolute left-3 z-10 pointer-events-none" />
@@ -309,44 +334,45 @@ export default function GiftsManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {gifts.length === 0 ? (
+              {gifts.filter((gift) => gift.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center p-6 text-gray-400">No active tracking records matches current index criteria.</td>
+                  <td colSpan={7} className="text-center p-6 text-gray-400">No {currentStatusTab.toLowerCase()} tracking records matches current index criteria.</td>
                 </tr>
               ) : (
-                gifts.map((gift) => (
-                  <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
-                    {/* Displays dynamically generated ELLAMAE prefix string tags */}
-                    <td className="py-4 px-4 font-bold text-gray-900 tracking-wider">{gift.display_id}</td>
-                    <td className="py-2 px-4">
-                      {gift.images && gift.images.length > 0 ? (
-                        <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
-                          <img src={gift.images[0]} alt="" className="w-full h-full object-cover" />
+                gifts
+                  .filter((gift) => gift.status === currentStatusTab)
+                  .map((gift) => (
+                    <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
+                      {/* Displays dynamically generated ELLAMAE prefix string tags */}
+                      <td className="py-4 px-4 font-bold text-gray-900 tracking-wider">{gift.display_id}</td>
+                      <td className="py-2 px-4">
+                        {gift.images && gift.images.length > 0 ? (
+                          <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
+                            <img src={gift.images[0]} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
+                            <ImageIcon size={16} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
+                      <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
+                      <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
+                      <td className="py-4 px-4">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
+                        }`}>
+                          {gift.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex justify-center space-x-3 text-black">
+                          <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
                         </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                          <ImageIcon size={16} />
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
-                    <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
-                    <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
-                        gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
-                      }`}>
-                        {gift.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex justify-center space-x-3 text-black">
-                        <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
-                        <button onClick={() => handleDeleteGift(gift.id)} className="hover:text-red-600 transition-colors"><Trash2 size={16} className="stroke-[2.5]" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>
@@ -551,8 +577,7 @@ export default function GiftsManagement() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between pt-5 border-t border-gray-200 mt-auto gap-4">
-                      <button type="button" onClick={() => selectedGift && handleDeleteGift(selectedGift.id)} className="px-6 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all">Delete Asset Log</button>
+                    <div className="flex justify-end pt-5 border-t border-gray-200 mt-auto gap-4">
                       <div className="flex gap-3">
                         <button type="button" onClick={() => setShowPreviewModal(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
                         <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded hover:bg-gray-900 transition-all">Update Changes</button>

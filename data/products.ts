@@ -8,6 +8,7 @@ export interface Product {
   tag?: string
   galleryImages?: string[]
   details?: string[]
+  status?: 'Active' | 'Inactive'
 }
 
 export const CATEGORIES = [

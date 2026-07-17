@@ -53,15 +53,5 @@ export async function initializeDatabase() {
     ) ENGINE=InnoDB;
   `);
 
-  // Alter columns to LONGTEXT to make sure base64 image storage does not exceed limits
-  try {
-    await db.query('ALTER TABLE category MODIFY COLUMN banner_image LONGTEXT');
-  } catch (err) {
-    console.warn('Altering category table warning:', err);
-  }
-  try {
-    await db.query('ALTER TABLE gift_images MODIFY COLUMN image_path LONGTEXT');
-  } catch (err) {
-    console.warn('Altering gift_images table warning:', err);
-  }
 }
+

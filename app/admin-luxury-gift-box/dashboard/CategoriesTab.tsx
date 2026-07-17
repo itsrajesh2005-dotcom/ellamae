@@ -282,7 +282,6 @@ export default function CategoriesManagement() {
                     <td className="py-4 px-4">
                       <div className="flex justify-center space-x-3 text-black">
                         <button onClick={() => handleViewClick(category)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
-                        <button onClick={() => handleDeleteCategory(category.id)} className="hover:text-red-600 transition-colors"><Trash2 size={16} className="stroke-[2.5]" /></button>
                       </div>
                     </td>
                   </tr>
@@ -431,8 +430,7 @@ export default function CategoriesManagement() {
                       </select>
                     </div>
 
-                    <div className="flex justify-between pt-5 border-t border-gray-200 mt-auto gap-4">
-                      <button type="button" onClick={() => selectedCategory && handleDeleteCategory(selectedCategory.id)} className="px-6 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all">Delete Category Log</button>
+                    <div className="flex justify-end pt-5 border-t border-gray-200 mt-auto gap-4">
                       <div className="flex gap-3">
                         <button type="button" onClick={() => setShowPreviewModal(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
                         <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded hover:bg-gray-900 transition-all">Update Changes</button>

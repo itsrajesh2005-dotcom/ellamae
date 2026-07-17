@@ -5,9 +5,9 @@ export async function GET(request: NextRequest) {
   try {
     await initializeDatabase();
     const db = await getDbConnection();
-    
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search')?.trim() || '';
+    const status = searchParams.get('status') || 'Active';
     
     // Strip "ELLAMAE" to search by ID
     const searchId = search.replace(/^ELLAMAE/i, '');
@@ -18,12 +18,20 @@ export async function GET(request: NextRequest) {
       LEFT JOIN gift_images gi ON g.id = gi.gift_id
     `;
     let params: any[] = [];
+    let whereClauses: string[] = [];
+    
+    if (status !== 'all') {
+      whereClauses.push('g.status = ?');
+      params.push(status);
+    }
     
     if (search) {
-      query += `
-        WHERE g.title LIKE ? OR g.description LIKE ? OR g.id = ?
-      `;
-      params = [`%${search}%`, `%${search}%`, searchId || -1];
+      whereClauses.push('(g.title LIKE ? OR g.description LIKE ? OR g.id = ?)');
+      params.push(`%${search}%`, `%${search}%`, searchId || -1);
+    }
+    
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
     }
     
     query += ' ORDER BY g.id DESC';

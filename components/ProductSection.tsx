@@ -17,7 +17,7 @@ export function ProductSection() {
   // Filter and Sort Products
   const processedProducts = useMemo(() => {
     // 1. Filter by category
-    let result = products
+    let result = products.filter((p) => p.status !== 'Inactive')
     if (selectedCategory !== "All") {
       result = result.filter((p) => p.category === selectedCategory)
     }

@@ -39,9 +39,6 @@ try {
         throw new Exception("Table creation failed: " . $conn->error);
     }
 
-    // Alter column to LONGTEXT to make sure base64 image storage does not exceed limits
-    $conn->query("ALTER TABLE category MODIFY COLUMN banner_image LONGTEXT");
-
     /* ---------------- GET ALL / SEARCH CATEGORIES ---------------- */
 
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
