@@ -40,7 +40,7 @@ export default function GiftsManagement() {
   
   const fetchGiftsFromServer = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8080/luxury-backend/manage-gifts.php');
+      const response = await fetch('http://localhost:8000/manage-gifts.php');
       const rawText = await response.text();
 
       let cleanJsonText = rawText.trim();

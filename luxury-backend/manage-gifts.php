@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     }
     echo json_encode($gifts);
+    $conn->close(); // Fixed: Safe connection close
     exit();
 }
 
@@ -43,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Check if dynamic multipart form-data configuration or JSON payload context
-    if (strpos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false) {
+    if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false) {
         $action = isset($_POST['action']) ? $_POST['action'] : '';
         $data_source = $_POST;
     } else {
@@ -69,17 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $file_orig_name = $_FILES['images']['name'];
             $file_ext = strtolower(pathinfo($file_orig_name, PATHINFO_EXTENSION));
             
-            // Allowed dynamic image asset formats validation check
             $allowed_extensions = array("jpg", "jpeg", "png", "webp");
             
             if (in_array($file_ext, $allowed_extensions)) {
-                // Auto generate unique file name mapping token to prevent file replacement issues
                 $image_name = "gift_" . time() . "_" . rand(1000, 9999) . "." . $file_ext;
-                
-                // Absolute target local path setups mapping directory path settings
                 $upload_dir = "../public/uploads/";
                 
-                // Creating directory context dynamic mappings if doesn't exist natively
                 if (!is_dir($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
                 }
@@ -88,18 +84,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 if (!move_uploaded_file($file_tmp, $upload_target_path)) {
                     echo json_encode(["status" => "error", "message" => "Image asset storage file movement failed."]);
+                    $conn->close();
                     exit();
                 }
             } else {
                 echo json_encode(["status" => "error", "message" => "Invalid asset extension format parsed."]);
+                $conn->close();
                 exit();
             }
         } else {
-            // Safe fallback value string mapping from fallback string requests
             $image_name = isset($data_source['images']) ? $conn->real_escape_string($data_source['images']) : 'default.jpg';
         }
 
-        // FIXED: Included dynamic verified file storage upload names mapping accurately into table row sequence
         $sql = "INSERT INTO gifts (id, name, description, category, price, stock, best_seller, status, images) 
                 VALUES ('$id', '$name', '$description', '$category', '$price', '$stock', '$best_seller', '$status', '$image_name')";
 
@@ -108,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode(["status" => "error", "message" => "SQL Error: " . $conn->error]);
         }
+        $conn->close(); // Fixed
         exit();
     }
 
@@ -121,7 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $best_seller = $conn->real_escape_string($data_source['best_seller']);
         $status = $conn->real_escape_string($data_source['status']);
 
-        // Check if dynamic updates includes replacing existing layout file uploads images components
         if (isset($_FILES['images']) && $_FILES['images']['error'] === UPLOAD_ERR_OK) {
             $file_tmp = $_FILES['images']['tmp_name'];
             $file_orig_name = $_FILES['images']['name'];
@@ -134,7 +130,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upload_target_path = $upload_dir . $image_name;
                 
                 if (move_uploaded_file($file_tmp, $upload_target_path)) {
-                    // Injecting customized new dynamic active files naming mapping query components
                     $sql_image_part = ", images='$image_name'";
                 } else {
                     $sql_image_part = "";
@@ -143,7 +138,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql_image_part = "";
             }
         } else {
-            // Keep existing dynamic string values mapping arrays fields fallback parameters setup
             $images = isset($data_source['images']) ? $conn->real_escape_string($data_source['images']) : '';
             $sql_image_part = $images !== '' ? ", images='$images'" : "";
         }
@@ -156,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode(["status" => "error", "message" => "Update Failed: " . $conn->error]);
         }
+        $conn->close(); // Fixed
         exit();
     }
 
@@ -169,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode(["status" => "error", "message" => "Delete Failed: " . $conn->error]);
         }
+        $conn->close(); // Fixed
         exit();
     }
 }

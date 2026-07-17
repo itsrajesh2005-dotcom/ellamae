@@ -384,4 +384,4 @@ export default function CategoriesManagement() {
       </main>
     </div>
   );
-}
+}-0
