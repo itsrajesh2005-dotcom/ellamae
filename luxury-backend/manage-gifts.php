@@ -1,173 +1,263 @@
 <?php
-// 1. CRITICAL SECURITY HEADERS - FRONTEND CONNECTIVTY LOOKUP
+
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Content-Type: application/json");
 
-// Handle browser preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") {
     exit();
 }
 
-// 2. DATABASE CONFIGURATION CONNECTIONS
-$servername = "localhost";
-$username = "root";
-$password = ""; 
-$dbname = "luxury_db";
+// Disable strict error throwing for mysqli (forces it to return false on error)
+mysqli_report(MYSQLI_REPORT_OFF);
 
-$conn = new mysqli($servername, $username, $password, $dbname);
+try {
+    /*---------DATABASE CONNECTION---------*/
+    $conn = new mysqli("localhost", "root", "", "ellamae_db");
 
-if ($conn->connect_error) {
-    echo json_encode(["status" => "error", "message" => "Database Connection Failed: " . $conn->connect_error]);
-    exit();
-}
+    if ($conn->connect_error) {
+        throw new Exception("Database Connection Failed: " . $conn->connect_error);
+    }
 
-// 3. READ OPERATION (GET ALL GIFTS)
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $sql = "SELECT * FROM gifts ORDER BY id DESC";
-    $result = $conn->query($sql);
-    $gifts = [];
+    /* ---------------- AUTO-CREATE TABLES IF NOT EXIST ---------------- */
+    // 1. Create the main gifts table
+    $createGiftsTable = "CREATE TABLE IF NOT EXISTS gifts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        category_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        description TEXT,
+        status VARCHAR(50) DEFAULT 'Active'
+    ) ENGINE=InnoDB;";
     
-    if ($result && $result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            $gifts[] = $row;
+    if (!$conn->query($createGiftsTable)) {
+        throw new Exception("Gifts table creation failed: " . $conn->error);
+    }
+
+    // 2. Create the separate gift_images table for decoupled image storage
+    $createGiftImagesTable = "CREATE TABLE IF NOT EXISTS gift_images (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        gift_id INT NOT NULL,
+        image_path LONGTEXT NOT NULL,
+        FOREIGN KEY (gift_id) REFERENCES gifts(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB;";
+    
+    if (!$conn->query($createGiftImagesTable)) {
+        throw new Exception("Gift images table creation failed: " . $conn->error);
+    }
+
+
+    /* ---------------- GET / SEARCH GIFTS ---------------- */
+    if ($_SERVER['REQUEST_METHOD'] == "GET") {
+        $search = "";
+
+        if (isset($_GET['search'])) {
+            $search = trim($_GET['search']);
         }
-    }
-    echo json_encode($gifts);
-    $conn->close(); // Fixed: Safe connection close
-    exit();
-}
 
-// 4. WRITE & MUTATION OPERATIONS (POST REQUESTS)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    
-    // Check if dynamic multipart form-data configuration or JSON payload context
-    if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false) {
-        $action = isset($_POST['action']) ? $_POST['action'] : '';
-        $data_source = $_POST;
-    } else {
-        $input = json_decode(file_get_contents('php://input'), true);
-        $action = isset($input['action']) ? $input['action'] : '';
-        $data_source = $input;
-    }
+        // Strip out the prefix if the user searches for "ELLAMAE15" so it searches the numeric column for just "15"
+        $searchId = str_replace("ELLAMAE", "", $search);
 
-    if ($action === 'CREATE') {
-        $id = $conn->real_escape_string($data_source['id']);
-        $name = $conn->real_escape_string($data_source['name']);
-        $description = $conn->real_escape_string($data_source['description']);
-        $category = $conn->real_escape_string($data_source['category']);
-        $price = $conn->real_escape_string($data_source['price']);
-        $stock = $conn->real_escape_string($data_source['stock']);
-        $best_seller = $conn->real_escape_string($data_source['best_seller']);
-        $status = $conn->real_escape_string($data_source['status']);
-        
-        // --- SECURE PHYSICAL IMAGE UPLOAD SYSTEM ---
-        $image_name = "";
-        if (isset($_FILES['images']) && $_FILES['images']['error'] === UPLOAD_ERR_OK) {
-            $file_tmp = $_FILES['images']['tmp_name'];
-            $file_orig_name = $_FILES['images']['name'];
-            $file_ext = strtolower(pathinfo($file_orig_name, PATHINFO_EXTENSION));
+        if ($search != "") {
+            // Secure prepared statement searching title, description, or the numeric ID field
+            $sql = "SELECT g.*, gi.image_path 
+                    FROM gifts g 
+                    LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+                    WHERE g.title LIKE ? OR g.description LIKE ? OR g.id = ?
+                    ORDER BY g.id DESC";
             
-            $allowed_extensions = array("jpg", "jpeg", "png", "webp");
-            
-            if (in_array($file_ext, $allowed_extensions)) {
-                $image_name = "gift_" . time() . "_" . rand(1000, 9999) . "." . $file_ext;
-                $upload_dir = "../public/uploads/";
-                
-                if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
-                }
-                
-                $upload_target_path = $upload_dir . $image_name;
-                
-                if (!move_uploaded_file($file_tmp, $upload_target_path)) {
-                    echo json_encode(["status" => "error", "message" => "Image asset storage file movement failed."]);
-                    $conn->close();
-                    exit();
-                }
-            } else {
-                echo json_encode(["status" => "error", "message" => "Invalid asset extension format parsed."]);
-                $conn->close();
-                exit();
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $searchParam = "%" . $search . "%";
+                $stmt->bind_param("sss", $searchParam, $searchParam, $searchId);
             }
         } else {
-            $image_name = isset($data_source['images']) ? $conn->real_escape_string($data_source['images']) : 'default.jpg';
+            $sql = "SELECT g.*, gi.image_path 
+                    FROM gifts g 
+                    LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+                    ORDER BY g.id DESC";
+            $stmt = $conn->prepare($sql);
         }
 
-        $sql = "INSERT INTO gifts (id, name, description, category, price, stock, best_seller, status, images) 
-                VALUES ('$id', '$name', '$description', '$category', '$price', '$stock', '$best_seller', '$status', '$image_name')";
+        if ($stmt) {
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $gifts = [];
+            while ($row = $result->fetch_assoc()) {
+                $gift_id = $row['id'];
+                if (!isset($gifts[$gift_id])) {
+                    $gifts[$gift_id] = [
+                        "id" => $row['id'],
+                        "category_id" => $row['category_id'],
+                        "title" => $row['title'],
+                        "price" => $row['price'],
+                        "description" => $row['description'],
+                        "status" => $row['status'],
+                        "display_id" => "ELLAMAE" . $row['id'],
+                        "images" => []
+                    ];
+                }
+                if (!empty($row['image_path'])) {
+                    $gifts[$gift_id]['images'][] = $row['image_path'];
+                }
+            }
 
-        if ($conn->query($sql) === TRUE) {
-            echo json_encode(["status" => "success", "message" => "Asset record created successfully inside luxury_db table with file upload integration."]);
+            echo json_encode(array_values($gifts));
+            $stmt->close();
         } else {
-            echo json_encode(["status" => "error", "message" => "SQL Error: " . $conn->error]);
+            throw new Exception("Failed to prepare select query: " . $conn->error);
         }
-        $conn->close(); // Fixed
+        $conn->close();
         exit();
     }
 
-    if ($action === 'UPDATE') {
-        $id = $conn->real_escape_string($data_source['id']);
-        $name = $conn->real_escape_string($data_source['name']);
-        $description = $conn->real_escape_string($data_source['description']);
-        $category = $conn->real_escape_string($data_source['category']);
-        $price = $conn->real_escape_string($data_source['price']);
-        $stock = $conn->real_escape_string($data_source['stock']);
-        $best_seller = $conn->real_escape_string($data_source['best_seller']);
-        $status = $conn->real_escape_string($data_source['status']);
+    /* ---------------- POST CONTROLLER LAYER (Action Payload Switcher) ---------------- */
+    $input = json_decode(file_get_contents("php://input"), true);
+    $action = isset($input['action']) ? $input['action'] : '';
 
-        if (isset($_FILES['images']) && $_FILES['images']['error'] === UPLOAD_ERR_OK) {
-            $file_tmp = $_FILES['images']['tmp_name'];
-            $file_orig_name = $_FILES['images']['name'];
-            $file_ext = strtolower(pathinfo($file_orig_name, PATHINFO_EXTENSION));
-            $allowed_extensions = array("jpg", "jpeg", "png", "webp");
-            
-            if (in_array($file_ext, $allowed_extensions)) {
-                $image_name = "gift_" . time() . "_" . rand(1000, 9999) . "." . $file_ext;
-                $upload_dir = "../public/uploads/";
-                $upload_target_path = $upload_dir . $image_name;
-                
-                if (move_uploaded_file($file_tmp, $upload_target_path)) {
-                    $sql_image_part = ", images='$image_name'";
-                } else {
-                    $sql_image_part = "";
+    /* ---------------- ACTION: CREATE ---------------- */
+    if ($action == "CREATE") {
+        $category_id = intval($input['category_id'] ?? 0);
+        $title = $input['title'] ?? '';
+        $price = floatval($input['price'] ?? 0.00);
+        $description = $input['description'] ?? '';
+        $status = $input['status'] ?? 'Active';
+        $images = $input['images'] ?? []; // Array of images in base64
+
+        if (empty($title) || $category_id <= 0) {
+            echo json_encode(["status" => "error", "message" => "Title and Category are required"]);
+            $conn->close();
+            exit();
+        }
+
+        $stmt = $conn->prepare("INSERT INTO gifts (category_id, title, price, description, status) VALUES (?, ?, ?, ?, ?)");
+        if ($stmt) {
+            $stmt->bind_param("isdss", $category_id, $title, $price, $description, $status);
+
+            if ($stmt->execute()) {
+                $gift_id = $conn->insert_id;
+                $stmt->close();
+
+                // Save multiple images into relational table
+                if (is_array($images) && count($images) > 0) {
+                    $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
+                    if ($stmt2) {
+                        foreach ($images as $img) {
+                            if (!empty($img)) {
+                                $stmt2->bind_param("is", $gift_id, $img);
+                                $stmt2->execute();
+                            }
+                        }
+                        $stmt2->close();
+                    }
                 }
+
+                echo json_encode(["status" => "success", "message" => "Gift Added Successfully", "id" => $gift_id]);
             } else {
-                $sql_image_part = "";
+                echo json_encode(["status" => "error", "message" => "Error adding gift: " . $stmt->error]);
+                $stmt->close();
             }
         } else {
-            $images = isset($data_source['images']) ? $conn->real_escape_string($data_source['images']) : '';
-            $sql_image_part = $images !== '' ? ", images='$images'" : "";
+            throw new Exception("Failed to prepare insert query: " . $conn->error);
         }
-
-        $sql = "UPDATE gifts SET name='$name', description='$description', category='$category', price='$price', 
-                stock='$stock', best_seller='$best_seller', status='$status' $sql_image_part WHERE id='$id'";
-
-        if ($conn->query($sql) === TRUE) {
-            echo json_encode(["status" => "success", "message" => "Record metrics updated successfully."]);
-        } else {
-            echo json_encode(["status" => "error", "message" => "Update Failed: " . $conn->error]);
-        }
-        $conn->close(); // Fixed
+        $conn->close();
         exit();
     }
 
-    if ($action === 'DELETE') {
-        $id = $conn->real_escape_string($data_source['id']);
-        
-        $sql = "DELETE FROM gifts WHERE id='$id'";
+    /* ---------------- ACTION: UPDATE ---------------- */
+    if ($action == "UPDATE") {
+        $id = intval($input['id'] ?? 0);
+        $category_id = intval($input['category_id'] ?? 0);
+        $title = $input['title'] ?? '';
+        $price = floatval($input['price'] ?? 0.00);
+        $description = $input['description'] ?? '';
+        $status = $input['status'] ?? 'Active';
+        $images = $input['images'] ?? []; // Array of images in base64
 
-        if ($conn->query($sql) === TRUE) {
-            echo json_encode(["status" => "success", "message" => "Asset deleted permanently from system records."]);
-        } else {
-            echo json_encode(["status" => "error", "message" => "Delete Failed: " . $conn->error]);
+        if ($id <= 0 || empty($title) || $category_id <= 0) {
+            echo json_encode(["status" => "error", "message" => "Missing required update properties"]);
+            $conn->close();
+            exit();
         }
-        $conn->close(); // Fixed
+
+        $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, description = ?, status = ? WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("isdssi", $category_id, $title, $price, $description, $status, $id);
+
+            if ($stmt->execute()) {
+                $stmt->close();
+
+                // Delete all old image records for this gift
+                $stmtDel = $conn->prepare("DELETE FROM gift_images WHERE gift_id = ?");
+                if ($stmtDel) {
+                    $stmtDel->bind_param("i", $id);
+                    $stmtDel->execute();
+                    $stmtDel->close();
+                }
+
+                // Insert updated images array into relational table
+                if (is_array($images) && count($images) > 0) {
+                    $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
+                    if ($stmt2) {
+                        foreach ($images as $img) {
+                            if (!empty($img)) {
+                                $stmt2->bind_param("is", $id, $img);
+                                $stmt2->execute();
+                            }
+                        }
+                        $stmt2->close();
+                    }
+                }
+
+                echo json_encode(["status" => "success", "message" => "Gift Updated Successfully"]);
+            } else {
+                echo json_encode(["status" => "error", "message" => "Error updating gift: " . $stmt->error]);
+                $stmt->close();
+            }
+        } else {
+            throw new Exception("Failed to prepare update query: " . $conn->error);
+        }
+        $conn->close();
         exit();
     }
+
+    /* ---------------- ACTION: DELETE (TARGETED ONLY) ---------------- */
+    if ($action == "DELETE") {
+        $id = intval($input['id'] ?? 0);
+
+        if ($id <= 0) {
+            echo json_encode(["status" => "error", "message" => "Invalid target tracking log ID"]);
+            $conn->close();
+            exit();
+        }
+
+        // Explicitly deletes only the specific single row target matching the assigned numeric ID
+        $stmt = $conn->prepare("DELETE FROM gifts WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $id);
+
+            if ($stmt->execute()) {
+                echo json_encode(["status" => "success", "message" => "Gift Deleted Successfully"]);
+            } else {
+                echo json_encode(["status" => "error", "message" => "Error deleting gift: " . $stmt->error]);
+            }
+            $stmt->close();
+        } else {
+            throw new Exception("Failed to prepare delete query: " . $conn->error);
+        }
+
+        $conn->close();
+        exit();
+    }
+
+    $conn->close();
+
+} catch (Throwable $e) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Server exception: " . $e->getMessage()
+    ]);
 }
-
-$conn->close();
 ?>

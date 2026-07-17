@@ -1,149 +1,217 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, Plus, Eye, Trash2, Gift, Tags, Layers, FileText, CheckCircle, Upload, Image as ImageIcon } from 'lucide-react';
-
-const initialCategories = [
-  { id: 1, name: 'Birthday Gifts', description: 'Curated luxury packages optimized for birthday celebrations', status: 'Active', images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80'] },
-  { id: 2, name: 'Anniversary Gifts', description: 'Premium elegant combinations tailored for couples and milestones', status: 'Active', images: ['https://images.unsplash.com/photo-1541643600914-78b084683601?w=500&q=80'] },
-  { id: 3, name: 'Corporate Gifts', description: 'Sophisticated professional hampers for events and corporate branding', status: 'Inactive', images: ['https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&q=80'] },
-];
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Eye, Trash2, Layers, CheckCircle, Upload, Image as ImageIcon } from 'lucide-react';
+const API_URL = "/api/categories";
 
 export default function CategoriesManagement() {
-  const [categories, setCategories] = useState(initialCategories);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Overlay & Modal Setup
   const [showMasterAddOverlay, setShowMasterAddOverlay] = useState(false);
   const [activeSubStep, setActiveSubStep] = useState<'details' | 'banner'>('details');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<typeof initialCategories[0] | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
 
   // Form states for creating a new category
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newStatus, setNewStatus] = useState('Active');
-  const [newImages, setNewImages] = useState<string[]>([]);
+  const [newImageString, setNewImageString] = useState(''); 
 
   // Form states for viewing/editing inside overlay
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editStatus, setEditStatus] = useState('');
-  const [editImages, setEditImages] = useState<string[]>([]);
-  
-  // State tracking for the currently selected preview image index inside View Modal
-  const [activePreviewIndex, setActivePreviewIndex] = useState<number>(0);
+  const [editStatus, setEditStatus] = useState('Active');
+  const [editImageString, setEditImageString] = useState('');
 
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
+  // 1. READ & DYNAMIC SEARCH PIPELINE
+  const fetchCategories = async (search = "") => {
+    try {
+      let url = API_URL;
+      if (search) {
+        url += `?search=${encodeURIComponent(search)}`;
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed fetching categories from database schema:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName) return alert('Please fill Category Name');
+    if (!newName.trim()) return alert('Please enter a Category Name');
     setActiveSubStep('banner');
   };
 
+  // Converts uploaded binary asset signatures clean to standard base64 strings
   const handleRealBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      fileArray.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setNewImages((prev) => [...prev, reader.result as string]);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setNewImageString(reader.result);
+        }
+      };
+      reader.readAsDataURL(files[0]);
     }
   };
 
   const handleEditBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      fileArray.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setEditImages((prev) => [...prev, reader.result as string]);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setEditImageString(reader.result);
+        }
+      };
+      reader.readAsDataURL(files[0]);
     }
   };
 
-  const handleRemoveEditBanner = (indexToRemove: number) => {
-    setEditImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-    // Reset preview index safely if the current previewed item gets deleted
-    if (activePreviewIndex >= editImages.length - 1) {
-      setActivePreviewIndex(0);
-    }
-  };
-
-  const handleFinalCategorySubmit = () => {
-    const nextId = categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1;
-
-    const createdCategory = {
-      id: nextId,
-      name: newName,
-      description: newDescription,
-      status: newStatus,
-      images: newImages.length > 0 ? newImages : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80']
-    };
-
-    setCategories([...categories, createdCategory]);
+  // 2. CREATE CATEGORY ROUTINE (SAVE & EXIT)
+  const handleFinalCategorySubmit = async () => {
+    if (!newName.trim()) return alert('Category Name is required');
     
-    setNewName(''); 
-    setNewDescription('');
-    setNewImages([]);
-    setActiveSubStep('details');
-    setShowMasterAddOverlay(false);
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE",
+          name: newName,
+          description: newDescription,
+          status: newStatus,
+          banner_image: newImageString
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server Error Response:", text);
+        return alert(`Server Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.status === "success") {
+        // Clear all form input hooks
+        setNewName("");
+        setNewDescription("");
+        setNewStatus("Active");
+        setNewImageString("");
+        setActiveSubStep("details");
+        
+        // EXIT insertion segment view overlay panel panel
+        setShowMasterAddOverlay(false);
+        
+        // Re-fetch list to render dynamically in the interface
+        fetchCategories(searchTerm);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error("Data insertion flow crash logs:", error);
+      alert("Error saving category. Please verify your connection or check console logs.");
+    }
   };
 
-  const handleViewClick = (category: typeof initialCategories[0]) => {
+  const handleViewClick = (category: any) => {
     setSelectedCategory(category);
     setEditName(category.name);
     setEditDescription(category.description);
     setEditStatus(category.status);
-    setEditImages(category.images || []);
-    setActivePreviewIndex(0); // Always default view to the first image log asset
+    setEditImageString(category.banner_image || "");
     setShowPreviewModal(true);
   };
 
-  const handleUpdateCategorySubmit = (e: React.FormEvent) => {
+  // 3. UPDATE CATEGORY SPECIFICATIONS LOGS
+  const handleUpdateCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory) return;
 
-    const updatedCategories = categories.map(c => 
-      c.id === selectedCategory.id 
-        ? { ...c, name: editName, description: editDescription, status: editStatus, images: editImages }
-        : c
-    );
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE",
+          id: selectedCategory.id,
+          name: editName,
+          description: editDescription,
+          status: editStatus,
+          banner_image: editImageString
+        })
+      });
 
-    setCategories(updatedCategories);
-    setShowPreviewModal(false);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server Error Response:", text);
+        return alert(`Server Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.status === "success") {
+        setShowPreviewModal(false);
+        fetchCategories(searchTerm);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error("Data update stream crash:", error);
+    }
   };
 
-  const handleDeleteCategory = (id: number) => {
-    const balanceCategories = categories.filter(c => c.id !== id);
-    setCategories(balanceCategories);
-    setShowPreviewModal(false);
+  // 4. ISOLATED TARGETED DELETIONS (ONLY DROPS REQUESTED TARGET)
+  const handleDeleteCategory = async (id: number) => {
+    if (!confirm("Are you positive you want to completely discard this isolated category entry?")) return;
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE",
+          id
+        })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server Error Response:", text);
+        return alert(`Server Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.status === "success") {
+        setShowPreviewModal(false);
+        fetchCategories(searchTerm);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error("Decoupled deletion action error trace:", error);
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-white text-black font-sans">
-      {/* MAIN CONTENT AREA */}
       <main className="flex-1 p-8 overflow-x-hidden relative">
-        {/* Header */}
+        {/* Header Block Layout */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-serif tracking-wide text-gray-900 font-bold">Categories</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage and track inventory categories</p>
+            <p className="text-sm text-gray-500 mt-1">Manage and track structural store classifications live from server schema</p>
           </div>
           <button 
             onClick={() => { setActiveSubStep('details'); setShowMasterAddOverlay(true); }}
@@ -154,25 +222,28 @@ export default function CategoriesManagement() {
           </button>
         </div>
 
-        {/* Search Box */}
-        <div className="relative max-w-md mb-6 flex items-center" style={{ position: 'relative' }}>
-          <Search size={16} className="text-gray-500" style={{ position: 'absolute', left: '12px', zIndex: 10, pointerEvents: 'none' }} />
+        {/* Live Search Trigger Filter Input Box */}
+        <div className="relative max-w-md mb-6 flex items-center">
+          <Search size={16} className="text-gray-500 absolute left-3 z-10 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search Category..."
+            placeholder="Search Category by Title name parameters..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black text-black font-bold placeholder-gray-400"
-            style={{ width: '100%', paddingLeft: '40px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px' }}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              fetchCategories(e.target.value);
+            }}
+            className="w-full bg-gray-50 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black text-black font-bold placeholder-gray-400 pl-10 pr-4 py-2"
           />
         </div>
 
-        {/* Data Table */}
+        {/* Dynamic Matrix Data Table Rendering Element */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-8">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-xs font-bold tracking-wider uppercase">
                 <th className="py-4 px-4 w-12 text-black font-bold">ID</th>
+                <th className="py-4 px-4 w-20 text-black font-bold">Banner</th>
                 <th className="py-4 px-4 text-black font-bold">Category Name</th>
                 <th className="py-4 px-4 text-black font-bold">Description</th>
                 <th className="py-4 px-4 text-black font-bold">Status</th>
@@ -180,115 +251,121 @@ export default function CategoriesManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredCategories.map((category) => (
-                <tr key={category.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-4 font-bold text-gray-900">{category.id}</td>
-                  <td className="py-4 px-4 font-bold text-gray-950">{category.name}</td>
-                  <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{category.description}</td>
-                  <td className="py-4 px-4">
-                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
-                      category.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
-                    }`}>
-                      {category.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex justify-center space-x-3 text-black">
-                      <button onClick={() => handleViewClick(category)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
-                      <button onClick={() => handleDeleteCategory(category.id)} className="hover:text-red-600 transition-colors"><Trash2 size={16} className="stroke-[2.5]" /></button>
-                    </div>
-                  </td>
+              {categories.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center p-6 text-gray-400">No category parameters found inside active database indexes.</td>
                 </tr>
-              ))}
+              ) : (
+                categories.map((category, index) => (
+                  <tr key={category.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4 px-4 font-bold text-gray-900">{index + 1}</td>
+                    <td className="py-2 px-4">
+                      {category.banner_image ? (
+                        <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
+                          <img src={category.banner_image} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
+                          <ImageIcon size={16} />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 font-bold text-gray-950">{category.name}</td>
+                    <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{category.description}</td>
+                    <td className="py-4 px-4">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        category.status === 'Active' || category.status === 'active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
+                      }`}>
+                        {category.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex justify-center space-x-3 text-black">
+                        <button onClick={() => handleViewClick(category)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
+                        <button onClick={() => handleDeleteCategory(category.id)} className="hover:text-red-600 transition-colors"><Trash2 size={16} className="stroke-[2.5]" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* WORKSPACE OVERLAY FORM PANEL (ADD CATEGORY WITH BANNER STEP) */}
+        {/* CREATE CATEGORY FULL-SCREEN WORKSPACE OVERLAY */}
         {showMasterAddOverlay && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 40px', borderBottom: '1px solid #e5e7eb' }}>
+          <div className="absolute inset-0 z-50 flex flex-col bg-white">
+            <div className="flex justify-between items-center px-10 py-6 border-b border-gray-200 relative">
               <div>
-                <h2 style={{ fontFamily: 'serif', fontSize: '22px', fontWeight: 'bold', color: '#000000' }}>Create Category Component</h2>
-                <p style={{ fontSize: '12px', color: '#6b7280' }}>Fill configurations logs to insert into server data</p>
+                <h2 className="font-serif text-2xl font-bold text-black">Create Category Component</h2>
+                <p className="text-xs text-gray-500">Fill configurations logs to insert into server data</p>
               </div>
-              <button type="button" onClick={() => setShowMasterAddOverlay(false)} style={{ position: 'absolute', top: '24px', right: '40px', border: '1px solid #000000', backgroundColor: 'transparent', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>Exit ✕</button>
+              <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="border border-black bg-transparent px-4 py-2 rounded font-bold text-xs cursor-pointer hover:bg-gray-50">Exit ✕</button>
             </div>
 
-            <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-              <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '32px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', padding: '16px 24px', borderRadius: '6px', marginBottom: '32px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: activeSubStep === 'details' ? 1 : 0.5 }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #000000', display: 'flex', alignItems: 'center', justify: 'center', backgroundColor: activeSubStep === 'details' ? '#000000' : 'transparent', color: activeSubStep === 'details' ? '#ffffff' : '#000000', fontWeight: 'bold', fontSize: '11px' }}>
-                      <Layers size={12} />
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', color: '#000000' }}>1. Category Specifications</span>
-                    </div>
+            <div className="flex-1 p-10 overflow-y-auto">
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center gap-8 bg-gray-50 border border-gray-200 p-4 rounded-md mb-8">
+                  <div className={`flex items-center gap-2.5 ${activeSubStep === 'details' ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs ${activeSubStep === 'details' ? 'bg-black text-white' : 'text-black'}`}><Layers size={12} /></div>
+                    <span className="font-bold text-xs text-black">1. Category Specifications</span>
                   </div>
-                  <div style={{ color: '#9ca3af', fontWeight: 'bold' }}>➔</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: activeSubStep === 'banner' ? 1 : 0.5 }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #000000', display: 'flex', alignItems: 'center', justify: 'center', backgroundColor: activeSubStep === 'banner' ? '#000000' : 'transparent', color: activeSubStep === 'banner' ? '#ffffff' : '#000000', fontWeight: 'bold', fontSize: '11px' }}>
-                      <ImageIcon size={12} />
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', color: '#000000' }}>2. Category Banner Portfolio</span>
-                    </div>
+                  <div className="text-gray-400 font-bold">➔</div>
+                  <div className={`flex items-center gap-2.5 ${activeSubStep === 'banner' ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs ${activeSubStep === 'banner' ? 'bg-black text-white' : 'text-black'}`}><ImageIcon size={12} /></div>
+                    <span className="font-bold text-xs text-black">2. Category Banner Portfolio</span>
                   </div>
                 </div>
 
                 {activeSubStep === 'details' && (
-                  <form onSubmit={handleNextSubStep} style={{ color: '#000000', fontSize: '13px' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Category Name</label>
-                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Enter Category Name" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                  <form onSubmit={handleNextSubStep} className="text-black text-sm">
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Category Name</label>
+                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Enter Category Name" className="w-full p-2.5 border border-black rounded color-black font-bold text-black" />
                     </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Category Description</label>
-                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write description overview for this tracking log level..." style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold', resize: 'none' }} />
-                  </div>
-
-                  <div style={{ marginBottom: '40px' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Initial Status</label>
-                    <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold', backgroundColor: '#ffffff' }}>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e5e7eb', paddingTop: '24px', gap: '16px' }}>
-                      <button type="button" onClick={() => setShowMasterAddOverlay(false)} style={{ padding: '12px 24px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>Cancel</button>
-                      <button type="submit" style={{ padding: '12px 32px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next step</button>
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Category Description</label>
+                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write description overview parameters configuration..." className="w-full p-2.5 border border-black rounded color-black font-bold resize-none text-black" />
+                    </div>
+                    <div className="mb-10">
+                      <label className="block font-bold mb-1">Initial Status</label>
+                      <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2.5 border border-black rounded color-black font-bold bg-white text-black">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                    </div>
+                    <div className="flex justify-end border-t border-gray-200 pt-6 gap-4">
+                      <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
+                      <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded uppercase tracking-wider text-xs">Next step</button>
                     </div>
                   </form>
                 )}
 
                 {activeSubStep === 'banner' && (
-                  <div style={{ color: '#000000' }}>
-                    <label style={{ display: 'block', cursor: 'pointer', marginBottom: '24px' }}>
-                      <input type="file" accept="image/*" multiple onChange={handleRealBannerUpload} style={{ display: 'none' }} />
-                      <div style={{ border: '2px dashed #000000', padding: '48px 24px', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#f9fafb' }}>
-                        <Upload size={36} style={{ color: '#000000', marginBottom: '12px' }} />
-                        <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#000000' }}>Choose Category Banner Image</span>
+                  <div className="text-black">
+                    <label className="block cursor-pointer mb-6">
+                      <input type="file" accept="image/*" onChange={handleRealBannerUpload} className="hidden" />
+                      <div className="border-2 dashed border-black p-12 rounded-md flex flex-col items-center bg-gray-50 hover:bg-gray-100/70 transition-all">
+                        <Upload size={36} className="text-black mb-3" />
+                        <span className="font-bold text-sm">Choose Category Banner Image File</span>
                       </div>
                     </label>
 
-                    <span style={{ display: 'block', fontWeight: 'bold', color: '#000000', marginBottom: '16px', fontSize: '14px' }}>Select Banner Image</span>
-                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '16px', maxHeight: '280px', overflowY: 'auto', backgroundColor: '#f9fafb', marginBottom: '40px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                        {newImages.map((url, i) => (
-                          <div key={i} style={{ width: '100%', aspectRatio: '1/1', border: '1px solid #000000', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
-                            <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        ))}
-                      </div>
+                    <span className="block font-bold mb-4 text-sm">Selected Banner Image Preview</span>
+                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50 mb-10 min-h-[120px] flex items-center justify-center">
+                      {newImageString ? (
+                        <div className="w-32 aspect-square border border-black rounded overflow-hidden bg-white">
+                          <img src={newImageString} alt="preview asset" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">No banner graphic item mapped yet</span>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e5e7eb', paddingTop: '24px', gap: '16px' }}>
-                      <button type="button" onClick={() => setActiveSubStep('details')} style={{ padding: '12px 24px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>← Back</button>
-                      <button type="button" onClick={handleFinalCategorySubmit} style={{ padding: '12px 32px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle size={16} /> Save Component
+                    <div className="flex justify-end border-t border-gray-200 pt-6 gap-4">
+                      <button type="button" onClick={() => setActiveSubStep('details')} className="px-6 py-3 border border-black bg-white font-bold rounded">← Back</button>
+                      <button type="button" onClick={handleFinalCategorySubmit} className="px-8 py-3 bg-black text-white font-bold rounded uppercase flex items-center gap-2 text-xs">
+                        <CheckCircle size={14} /> Save Component
                       </button>
                     </div>
                   </div>
@@ -300,77 +377,65 @@ export default function CategoriesManagement() {
 
         {/* PREVIEW + DIRECT EDIT LIVE OVERLAY CONTAINER */}
         {showPreviewModal && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 40px', borderBottom: '1px solid #e5e7eb' }}>
+          <div className="absolute inset-0 z-50 flex flex-col bg-white">
+            <div className="flex justify-between items-center px-10 py-6 border-b border-gray-200 relative">
               <div>
-                <h2 style={{ fontFamily: 'serif', fontSize: '22px', fontWeight: 'bold', color: '#000000' }}>Manage Category Asset Configs</h2>
-                <p style={{ fontSize: '12px', color: '#6b7280' }}>Update hierarchy metrics and active log specifications</p>
+                <h2 className="font-serif text-2xl font-bold text-black">Manage Category Asset Configs</h2>
+                <p className="text-xs text-gray-500">Update hierarchy metrics and active log specifications</p>
               </div>
-              <button type="button" onClick={() => setShowPreviewModal(false)} style={{ position: 'absolute', top: '24px', right: '40px', border: '1px solid #000000', backgroundColor: 'transparent', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>Exit ✕</button>
+              <button type="button" onClick={() => setShowPreviewModal(false)} className="border border-black bg-transparent px-4 py-2 rounded font-bold text-xs cursor-pointer hover:bg-gray-50">Exit ✕</button>
             </div>
 
-            <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-              <div style={{ maxWidth: '1080px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '48px' }}>
+            <div className="flex-1 p-10 overflow-y-auto">
+              <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12">
                 
-                {/* Left Side: Banner View Layout */}
+                {/* Left Block Side Image Graphics Display Container */}
                 <div>
-                  <span style={{ display: 'block', fontWeight: 'bold', color: '#000000', marginBottom: '12px', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.5px' }}>Category Banner Layout</span>
-                  <div style={{ border: '1px solid #000000', borderRadius: '6px', overflow: 'hidden', aspectRatio: '16/10', backgroundColor: '#f9fafb', marginBottom: '20px', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                    {editImages.length > 0 ? (
-                      <img src={editImages[activePreviewIndex] || editImages[0]} alt="Active Asset" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <span className="block font-bold text-black mb-3 uppercase text-xs tracking-wider">Category Banner Layout</span>
+                  <div className="border border-black rounded-md overflow-hidden aspect-[16/10] bg-gray-50 mb-5 flex items-center justify-center">
+                    {editImageString ? (
+                      <img src={editImageString} alt="Active Layout Grid Asset" className="w-full h-full object-contain" />
                     ) : (
-                      <div style={{ textAlign: 'center', color: '#9ca3af' }}>
-                        <ImageIcon size={40} style={{ margin: '0 auto 8px' }} />
-                        <span>No Active Banners</span>
+                      <div className="text-center text-gray-400">
+                        <ImageIcon size={40} className="mx-auto mb-2" />
+                        <span className="text-xs">No Active Banner Layout Rendered</span>
                       </div>
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '24px' }}>
-                    {editImages.map((imgUrl, index) => (
-                      <div 
-                        key={index} 
-                        onClick={() => setActivePreviewIndex(index)}
-                        style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: activePreviewIndex === index ? '2px solid #000000' : '1px solid #e5e7eb', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#ffffff', cursor: 'pointer' }}
-                      >
-                        <img src={imgUrl} alt="Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveEditBanner(index); }} style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justify: 'center', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
-                      </div>
-                    ))}
-                    <label style={{ cursor: 'pointer', width: '100%', aspectRatio: '1/1', border: '1px dashed #000000', borderRadius: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center', backgroundColor: '#f9fafb' }}>
-                      <input type="file" accept="image/*" multiple onChange={handleEditBannerUpload} style={{ display: 'none' }} />
-                      <Plus size={16} style={{ color: '#000000' }} />
-                      <span style={{ fontSize: '9px', fontWeight: 'bold', marginTop: '2px' }}>Add</span>
-                    </label>
-                  </div>
+                  <label className="cursor-pointer border border-dashed border-black rounded p-4 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
+                    <input type="file" accept="image/*" onChange={handleEditBannerUpload} className="hidden" />
+                    <Upload size={18} className="text-black mb-1" />
+                    <span className="text-xs font-bold">Replace Banner Image</span>
+                  </label>
                 </div>
 
-                {/* Right Side: Detailed Direct Fields Editor Form */}
+                {/* Right Block Side Form Content Component */}
                 <div>
-                  <form onSubmit={handleUpdateCategorySubmit} style={{ display: 'flex', flexDirection: 'column', color: '#000000', fontSize: '13px' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Category Hierarchy Name</label>
-                      <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                  <form onSubmit={handleUpdateCategorySubmit} className="flex flex-col text-black text-sm h-full">
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Category Hierarchy Name</label>
+                      <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold text-black" />
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Category Specifications / Description Overview</label>
-                      <textarea rows={5} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold', resize: 'none' }} />
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Category Specifications / Description Overview</label>
+                      <textarea rows={5} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold resize-none text-black" />
                     </div>
 
-                    <div style={{ marginBottom: '40px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Hierarchy Status Log</label>
-                      <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold', backgroundColor: '#ffffff' }}>
+                    <div className="mb-8">
+                      <label className="block font-bold mb-1">Hierarchy Status Log</label>
+                      <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold bg-white text-black">
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                       </select>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '20px', borderTop: '1px solid #e5e7eb', marginTop: 'auto' }}>
-                      <button type="button" onClick={() => selectedCategory && handleDeleteCategory(selectedCategory.id)} style={{ padding: '12px 24px', backgroundColor: '#dc2626', color: '#ffffff', fontWeight: 'bold', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Delete Category Log</button>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <button type="button" onClick={() => setShowPreviewModal(false)} style={{ padding: '12px 24px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>Cancel</button>
-                        <button type="submit" style={{ padding: '12px 32px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Update Changes</button>
+                    <div className="flex justify-between pt-5 border-t border-gray-200 mt-auto gap-4">
+                      <button type="button" onClick={() => selectedCategory && handleDeleteCategory(selectedCategory.id)} className="px-6 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all">Delete Category Log</button>
+                      <div className="flex gap-3">
+                        <button type="button" onClick={() => setShowPreviewModal(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
+                        <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded hover:bg-gray-900 transition-all">Update Changes</button>
                       </div>
                     </div>
                   </form>
@@ -380,7 +445,6 @@ export default function CategoriesManagement() {
             </div>
           </div>
         )}
-
       </main>
     </div>
   );

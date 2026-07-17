@@ -1,0 +1,8 @@
+1:"$Sreact.fragment"
+2:I[54765,["/_next/static/chunks/3qjdavpyl1shc.js","/_next/static/chunks/0pcexcsl3pdq8.js","/_next/static/chunks/0zxhl7gy_4zxy.js","/_next/static/chunks/138_t6pt3s0t5.js"],"Navbar"]
+3:I[83756,["/_next/static/chunks/3qjdavpyl1shc.js","/_next/static/chunks/0pcexcsl3pdq8.js","/_next/static/chunks/0zxhl7gy_4zxy.js","/_next/static/chunks/138_t6pt3s0t5.js"],"ProductDetailClient"]
+4:I[61261,["/_next/static/chunks/3qjdavpyl1shc.js","/_next/static/chunks/0pcexcsl3pdq8.js","/_next/static/chunks/0zxhl7gy_4zxy.js","/_next/static/chunks/138_t6pt3s0t5.js"],"Footer"]
+5:I[68566,["/_next/static/chunks/3qjdavpyl1shc.js","/_next/static/chunks/0pcexcsl3pdq8.js"],"OutletBoundary"]
+6:"$Sreact.suspense"
+0:{"rsc":["$","$1","c",{"children":[[["$","$L2",null,{"variant":"hero"}],["$","main",null,{"className":"bg-white","children":["$","$L3",null,{"product":{"id":43,"name":"Premium Microfibre Detailing Kit","category":"Car Accessories","price":3600,"image":"https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?w=600&auto=format&fit=crop&q=80","description":"Professional-grade microfibre cloths, detailing brushes, and a ceramic spray wax in a luxury carry case."}}]}],["$","$L4",null,{}]],[["$","script","script-0",{"src":"/_next/static/chunks/0zxhl7gy_4zxy.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/138_t6pt3s0t5.js","async":true}]],["$","$L5",null,{"children":["$","$6",null,{"name":"Next.MetadataOutlet","children":"$@7"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"VTULpXFIne0oD5YEJKYgN"}
+7:null

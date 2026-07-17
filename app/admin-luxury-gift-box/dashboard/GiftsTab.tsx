@@ -1,155 +1,108 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Trash2, Upload, FileText, Image as ImageIcon, CheckCircle, Gift, Tags, X } from 'lucide-react';
+import { Search, Plus, Eye, Trash2, Upload, FileText, Image as ImageIcon, CheckCircle, X } from 'lucide-react';
+
 export default function GiftsManagement() {
   const [gifts, setGifts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Dynamic Single Master Full Page Overlay Navigation Setup
+  // Dynamic Master Overlay Form Navigation Setup
   const [showMasterAddOverlay, setShowMasterAddOverlay] = useState(false);
   const [activeSubStep, setActiveSubStep] = useState<'details' | 'images'>('details');
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [showEditDeleteModal, setShowEditDeleteModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState<any | null>(null);
 
-  // Form states for creating new gift
-  const [newManualIdDigits, setNewManualIdDigits] = useState('');
+  // Form states for creating a new gift hampering product item
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newCategory, setNewCategory] = useState('Birthday Gifts');
+  const [newCategoryId, setNewCategoryId] = useState('');
   const [newPrice, setNewPrice] = useState('');
-  const [newStock, setNewStock] = useState('');
-  const [newBestSeller, setNewBestSeller] = useState('Yes');
   const [newStatus, setNewStatus] = useState('Active');
-  const [newImages, setNewImages] = useState<string[]>([]);
+  const [newImageStrings, setNewImageStrings] = useState<string[]>([]);
 
-  // Edit form states (Used inside the View/Edit Master Modal)
+  // Edit form properties states
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editCategory, setEditCategory] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
   const [editPrice, setEditPrice] = useState('');
-  const [editStock, setEditStock] = useState('');
-  const [editBestSeller, setEditBestSeller] = useState('');
-  const [editStatus, setEditStatus] = useState('');
-  const [editImages, setEditImages] = useState<string[]>([]);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [editStatus, setEditStatus] = useState('Active');
+  const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
 
-  // ==================== BACKEND INTEGRATION INTEGRITY PIPELINE ====================
-  
-  const fetchGiftsFromServer = async () => {
+  const GIFTS_API = '/api/gifts';
+  const CATEGORIES_API = '/api/categories';
+
+  // 1. DYNAMIC CATEGORIES RETRIEVAL HOOK
+  const fetchLiveCategories = async () => {
     try {
-      const response = await fetch('http://localhost:8000/manage-gifts.php');
-      const rawText = await response.text();
-
-      let cleanJsonText = rawText.trim();
-      if (cleanJsonText.includes('<br />') || cleanJsonText.includes('<b>')) {
-        console.warn("Backend dynamic notice or warnings intercepted: ", cleanJsonText);
-        const jsonStartIndex = cleanJsonText.indexOf('[');
-        const jsonStartObjIndex = cleanJsonText.indexOf('{');
-        
-        let targetIndex = -1;
-        if (jsonStartIndex !== -1 && jsonStartObjIndex !== -1) {
-          targetIndex = Math.min(jsonStartIndex, jsonStartObjIndex);
-        } else {
-          targetIndex = jsonStartIndex !== -1 ? jsonStartIndex : jsonStartObjIndex;
-        }
-
-        if (targetIndex !== -1) {
-          cleanJsonText = cleanJsonText.substring(targetIndex);
-        }
-      }
-
-      // FIXED: Wrapped in try-catch to prevent crash if backend returns invalid or broken JSON format
-      let data;
-      try {
-        data = JSON. parse(cleanJsonText);
-      } catch (jsonErr) {
-        console.error("Malformed JSON structure detected from backend response, activating safety fallback:", jsonErr);
-        if (gifts.length === 0) setGifts(initialGifts);
-        return;
-      }
-
+      const res = await fetch(CATEGORIES_API);
+      const data = await res.json();
       if (Array.isArray(data)) {
-        const processedGifts = data.map((item: any) => ({
-          id: String(item.id), 
-          name: item.name,
-          description: item.description,
-          category: item.category || 'Birthday Gifts',
-          price: String(item.price),
-          stock: String(item.stock),
-          bestSeller: item.best_seller || 'Yes',
-          status: item.status,
-          images: (() => {
-            if (!item.images) {
-              return ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80'];
-            }
-            try {
-              const cleanedString = typeof item.images === 'string' ? item.images.trim() : JSON.stringify(item.images);
-              return JSON.parse(cleanedString);
-            } catch (e) {
-              if (typeof item.images === 'string' && item.images.includes('http')) {
-                const cleanUrl = item.images.replace(/[\[\]\\"]/g, '');
-                return [cleanUrl];
-              }
-              return ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80'];
-            }
-          })()
-        }));
-        setGifts(processedGifts);
-      } else {
-        if(gifts.length === 0) setGifts(initialGifts);
+        setCategories(data);
+        if (data.length > 0) {
+          setNewCategoryId(String(data[0].id));
+        }
+      }
+    } catch (err) {
+      console.error("Failed parsing relational parent categories:", err);
+    }
+  };
+
+  // 2. READ / SEARCH GIFTS WITH BACKEND INTEGRATION 
+  const fetchGiftsFromServer = async (search = "") => {
+    try {
+      let url = GIFTS_API;
+      if (search) {
+        url += `?search=${encodeURIComponent(search)}`;
+      }
+      const response = await fetch(url);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setGifts(data);
       }
     } catch (error) {
-      console.error("Backend parse breakdown protection fallback active logs:", error);
-      if(gifts.length === 0) setGifts(initialGifts);
+      console.error("Backend parsing active protection logs exception:", error);
     }
   };
 
   useEffect(() => {
+    fetchLiveCategories();
     fetchGiftsFromServer();
   }, []);
 
-  // ===============================================================================
-
-  const filteredGifts = gifts.filter(gift =>
-    String(gift.id)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    gift.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    gift.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newManualIdDigits) return alert('Please enter the 3-digit ID number (e.g., 004)');
-    if (!newName) return alert('Please fill Product Name');
-    
-    const finalId = `ELLAMAE${newManualIdDigits}`;
-    const customIdRegex = /^ELLAMAE\d{3}$/;
-    if (!customIdRegex.test(finalId)) {
-      return alert('Invalid ID Format! Must be exactly 3 digits after ELLAMAE. Example: 005');
-    }
-
-    const idExists = gifts.some(gift => String(gift.id).toUpperCase() === finalId.toUpperCase());
-    if (idExists) {
-      return alert(`Unique Product ID ${finalId} is already allocated! Please input another sequential ordering number.`);
-    }
-
+    if (!newName.trim()) return alert('Please input Product Name');
+    if (!newCategoryId) return alert('A valid category selector choice is mandatory');
     setActiveSubStep('images');
   };
 
+  // Encodes incoming multiple files binary logs completely to pure Base64 strings
   const handleRealImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      fileArray.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setNewImages((prev) => [...prev, reader.result as string]);
-          }
-        };
-        reader.readAsDataURL(file);
+      const fileList = Array.from(files);
+      const promises = fileList.map(file => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+              resolve(reader.result);
+            } else {
+              reject(new Error("File conversion failed"));
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(promises).then(base64Strings => {
+        setNewImageStrings(prev => [...prev, ...base64Strings]);
+      }).catch(err => {
+        console.error("Error converting files:", err);
       });
     }
   };
@@ -157,164 +110,165 @@ export default function GiftsManagement() {
   const handleEditImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      fileArray.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setEditImages((prev) => [...prev, reader.result as string]);
-          }
-        };
-        reader.readAsDataURL(file);
+      const fileList = Array.from(files);
+      const promises = fileList.map(file => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+              resolve(reader.result);
+            } else {
+              reject(new Error("File conversion failed"));
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(promises).then(base64Strings => {
+        setEditImageStrings(prev => [...prev, ...base64Strings]);
+      }).catch(err => {
+        console.error("Error converting files:", err);
       });
     }
   };
 
-  const handleRemoveEditImage = (indexToRemove: number) => {
-    setEditImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-  };
-
+  // 3. CREATE GIFT FUNCTION (SAVE & EXIT)
   const handleFinalGiftSubmit = async () => {
-    const imgPayload = newImages.length > 0 ? newImages : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80'];
-    const uppercaseId = `ELLAMAE${newManualIdDigits}`.toUpperCase();
-    
-    const dbPayload = {
-      action: 'CREATE',
-      id: uppercaseId, 
-      name: newName,
-      description: newDescription,
-      category: newCategory,
-      price: newPrice,
-      stock: newStock,
-      best_seller: newBestSeller,
-      status: newStatus,
-      images: JSON.stringify(imgPayload)
-    };
-
-    const newGiftObject = {
-      id: uppercaseId,
-      name: newName,
-      description: newDescription,
-      category: newCategory,
-      price: newPrice,
-      stock: newStock,
-      bestSeller: newBestSeller,
-      status: newStatus,
-      images: imgPayload
-    };
-
-    setGifts(prevGifts => [newGiftObject, ...prevGifts]);
+    if (!newName.trim()) return alert("Product Title can't be empty");
 
     try {
-      await fetch('http://127.0.0.1:8080/luxury-backend/manage-gifts.php', {
+      const response = await fetch(GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbPayload)
+        body: JSON.stringify({
+          action: 'CREATE',
+          category_id: Number(newCategoryId),
+          title: newName,
+          price: Number(newPrice) || 0,
+          description: newDescription,
+          status: newStatus,
+          images: newImageStrings
+        })
       });
-      alert("Gift Product Created Successfully!");
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server Error Response:", text);
+        return alert(`Server Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        // Clear all input states
+        setNewName(''); setNewDescription(''); setNewPrice(''); setNewImageStrings([]);
+        setActiveSubStep('details');
+        
+        // Exit structural form overlay workspace panel section mapping 
+        setShowMasterAddOverlay(false);
+        
+        // Instantly reload active views data streams
+        fetchGiftsFromServer(searchTerm);
+      } else {
+        alert(result.message);
+      }
     } catch (err) {
-      console.warn("Connecting backend network breakdown fallback protection:", err);
+      console.error("Creating operational process pipeline error logs:", err);
+      alert("Error saving gift hamper. Please check console logs.");
     }
-    
-    setNewManualIdDigits(''); setNewName(''); setNewDescription(''); setNewPrice(''); setNewStock(''); setNewImages([]);
-    setActiveSubStep('details');
-    setShowMasterAddOverlay(false);
-    
-    setTimeout(() => {
-      fetchGiftsFromServer();
-    }, 600);
   };
 
   const handleViewClick = (gift: any) => {
     setSelectedGift(gift);
-    setEditName(gift.name);
+    setEditName(gift.title);
     setEditDescription(gift.description);
-    setEditCategory(gift.category);
-    setEditPrice(gift.price);
-    setEditStock(gift.stock);
-    setEditBestSeller(gift.bestSeller);
+    setEditCategoryId(String(gift.category_id));
+    setEditPrice(String(gift.price));
     setEditStatus(gift.status);
-    setEditImages(gift.images || []);
-    setActiveImageIndex(0);
+    setEditImageStrings(gift.images || []);
     setShowPreviewModal(true);
   };
 
+  // 4. UPDATE GIFT FUNCTION
   const handleUpdateGiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedGift) return;
 
-    const dbPayload = {
-      action: 'UPDATE',
-      id: selectedGift.id,
-      name: editName,
-      description: editDescription,
-      category: editCategory,
-      price: editPrice,
-      stock: editStock,
-      best_seller: editBestSeller,
-      status: editStatus,
-      images: JSON.stringify(editImages)
-    };
-
-    setGifts(prevGifts => prevGifts.map(g => 
-      g.id === selectedGift.id 
-        ? { ...g, name: editName, description: editDescription, category: editCategory, price: editPrice, stock: editStock, bestSeller: editBestSeller, status: editStatus, images: editImages }
-        : g
-    ));
-
     try {
-      await fetch('http://127.0.0.1:8080/luxury-backend/manage-gifts.php', {
+      const response = await fetch(GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbPayload)
+        body: JSON.stringify({
+          action: 'UPDATE',
+          id: selectedGift.id,
+          category_id: Number(editCategoryId),
+          title: editName,
+          price: Number(editPrice) || 0,
+          description: editDescription,
+          status: editStatus,
+          images: editImageStrings
+        })
       });
-      alert("Product Configuration Updated!");
-    } catch (err) {
-      console.warn("Network endpoint offline tracking error protection active:", err);
-    }
 
-    setShowEditDeleteModal(false);
-    setShowPreviewModal(false);
-    
-    setTimeout(() => {
-      fetchGiftsFromServer();
-    }, 600);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server Error Response:", text);
+        return alert(`Server Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        setShowPreviewModal(false);
+        fetchGiftsFromServer(searchTerm);
+      } else {
+        alert(result.message);
+      }
+    } catch (err) {
+      console.error("Updating modifications logs stream execution crash:", err);
+    }
   };
 
-  const handleDeleteGift = async (id: string | number) => {
-    setGifts(prevGifts => prevGifts.filter(g => String(g.id) !== String(id)));
-
-    const dbPayload = {
-      action: 'DELETE',
-      id: id
-    };
+  // 5. ISOLATED TARGETED DELETIONS (DELETES ONLY THE INTENDED UNIQUE ID ROW)
+  const handleDeleteGift = async (id: number) => {
+    if (!confirm("Are you confident about completely erasing this distinct item?")) return;
 
     try {
-      await fetch('http://127.0.0.1:8080/luxury-backend/manage-gifts.php', {
+      const response = await fetch(GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbPayload)
+        body: JSON.stringify({
+          action: 'DELETE',
+          id: id
+        })
       });
-    } catch (err) {
-      console.warn("Network offline tracking protection logic:", err);
-    }
 
-    setShowEditDeleteModal(false);
-    setShowPreviewModal(false);
-    
-    setTimeout(() => {
-      fetchGiftsFromServer();
-    }, 600);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server Error Response:", text);
+        return alert(`Server Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        setShowPreviewModal(false);
+        fetchGiftsFromServer(searchTerm);
+      } else {
+        alert(result.message);
+      }
+    } catch (err) {
+      console.error("Decoupled single targeted drop exception trace:", err);
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-white text-black font-sans">
       <main className="flex-1 p-8 overflow-x-hidden relative">
-        {/* Header */}
+        {/* Header Content */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-serif tracking-wide text-gray-900 font-bold">Gifts</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage all gift products</p>
+            <p className="text-sm text-gray-500 mt-1">Manage luxury gift items synced live with server schema tracking</p>
           </div>
           <button 
             onClick={() => { setActiveSubStep('details'); setShowMasterAddOverlay(true); }}
@@ -325,184 +279,184 @@ export default function GiftsManagement() {
           </button>
         </div>
 
-        {/* Search Box */}
-        <div className="relative max-w-md mb-6 flex items-center" style={{ position: 'relative' }}>
-          <Search size={16} className="text-gray-500" style={{ position: 'absolute', left: '12px', zIndex: 10, pointerEvents: 'none' }} />
+        {/* Dynamic Context Search Element */}
+        <div className="relative max-w-md mb-6 flex items-center">
+          <Search size={16} className="text-gray-500 absolute left-3 z-10 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search Gift..."
+            placeholder="Search by Title, Description or Unique ID..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black text-black font-bold placeholder-gray-400"
-            style={{ width: '100%', paddingLeft: '40px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px' }}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              fetchGiftsFromServer(e.target.value);
+            }}
+            className="w-full bg-gray-50 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black text-black font-bold placeholder-gray-400 pl-10 pr-4 py-2"
           />
         </div>
 
-        {/* Data Table */}
+        {/* Main Data Presentation Layout Table */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-8">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-xs font-bold tracking-wider uppercase">
-                <th className="py-4 px-4 w-24 text-black font-bold">ID</th>
-                <th className="py-4 px-4 text-black font-bold">Product Name</th>
-                <th className="py-4 px-4 text-black font-bold">Description</th>
-                <th className="py-4 px-4 text-black font-bold">Category</th>
+                <th className="py-4 px-4 w-28 text-black font-bold">Unique ID</th>
+                <th className="py-4 px-4 w-20 text-black font-bold">Image</th>
+                <th className="py-4 px-4 text-black font-bold">Product Title</th>
+                <th className="py-4 px-4 text-black font-bold">Description Specifications</th>
                 <th className="py-4 px-4 text-black font-bold">Price</th>
-                <th className="py-4 px-4 text-black font-bold">Stock</th>
-                <th className="py-4 px-4 text-black font-bold">Best Seller</th>
                 <th className="py-4 px-4 text-black font-bold">Status</th>
                 <th className="py-4 px-4 text-center text-black font-bold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {/* FIXED: Changed key to combine ID and index to completely avoid duplicate key warnings */}
-              {filteredGifts.map((gift, index) => (
-                <tr key={`${gift.id}-${index}`} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-4 font-bold text-amber-900 tracking-wider uppercase">{gift.id}</td>
-                  <td className="py-4 px-4 font-bold text-gray-950">{gift.name}</td>
-                  <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
-                  <td className="py-4 px-4 text-gray-900 font-medium">{gift.category}</td>
-                  <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
-                  <td className="py-4 px-4 text-gray-900 font-bold">{gift.stock}</td>
-                  <td className="py-4 px-4">
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${gift.bestSeller === 'Yes' ? 'bg-amber-100 text-black border border-amber-300' : 'bg-gray-100 text-gray-700'}`}>
-                      {gift.bestSeller}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
-                      gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
-                    }`}>
-                      {gift.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex justify-center space-x-3 text-black">
-                      <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
-                      <button onClick={() => handleDeleteGift(gift.id)} className="hover:text-red-600 transition-colors"><Trash2 size={16} className="stroke-[2.5]" /></button>
-                    </div>
-                  </td>
+              {gifts.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center p-6 text-gray-400">No active tracking records matches current index criteria.</td>
                 </tr>
-              ))}
+              ) : (
+                gifts.map((gift) => (
+                  <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
+                    {/* Displays dynamically generated ELLAMAE prefix string tags */}
+                    <td className="py-4 px-4 font-bold text-gray-900 tracking-wider">{gift.display_id}</td>
+                    <td className="py-2 px-4">
+                      {gift.images && gift.images.length > 0 ? (
+                        <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
+                          <img src={gift.images[0]} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
+                          <ImageIcon size={16} />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
+                    <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
+                    <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
+                    <td className="py-4 px-4">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
+                      }`}>
+                        {gift.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex justify-center space-x-3 text-black">
+                        <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
+                        <button onClick={() => handleDeleteGift(gift.id)} className="hover:text-red-600 transition-colors"><Trash2 size={16} className="stroke-[2.5]" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* WORKSPACE OVERLAY PANEL */}
+        {/* WORKSPACE OVERLAY FORM SECTION */}
         {showMasterAddOverlay && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', padding: '24px 40px', borderBottom: '1px solid #e5e7eb' }}>
+          <div className="absolute inset-0 z-50 flex flex-col bg-white">
+            <div className="flex justify-between items-center px-10 py-6 border-b border-gray-200 relative">
               <div>
-                <h2 style={{ fontFamily: 'serif', fontSize: '22px', fontWeight: 'bold', color: '#000000' }}>Create Luxury Asset Component</h2>
-                <p style={{ fontSize: '12px', color: '#6b7280' }}>Fill configurations logs to insert into server data</p>
+                <h2 className="font-serif text-2xl font-bold text-black">Create Luxury Asset Component</h2>
+                <p className="text-xs text-gray-500">Fill configurations logs to insert into server data</p>
               </div>
-              <button type="button" onClick={() => setShowMasterAddOverlay(false)} style={{ border: '1px solid #000000', backgroundColor: 'transparent', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>Exit ✕</button>
+              <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="border border-black bg-transparent px-4 py-2 rounded font-bold text-xs cursor-pointer hover:bg-gray-50">Exit ✕</button>
             </div>
 
-            <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-              <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '32px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', padding: '16px 24px', borderRadius: '6px', marginBottom: '32px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: activeSubStep === 'details' ? 1 : 0.5 }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activeSubStep === 'details' ? '#000000' : 'transparent', color: activeSubStep === 'details' ? '#ffffff' : '#000000', fontWeight: 'bold', fontSize: '11px' }}>
-                      <FileText size={12} />
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', color: '#000000' }}>1. Gift Specifications</span>
-                    </div>
+            <div className="flex-1 p-10 overflow-y-auto">
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center gap-8 bg-gray-50 border border-gray-200 p-4 rounded-md mb-8">
+                  <div className={`flex items-center gap-2.5 ${activeSubStep === 'details' ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs ${activeSubStep === 'details' ? 'bg-black text-white' : 'text-black'}`}><FileText size={12} /></div>
+                    <span className="font-bold text-xs text-black">1. Gift Specifications</span>
                   </div>
-                  <div style={{ color: '#9ca3af', fontWeight: 'bold' }}>➔</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: activeSubStep === 'images' ? 1 : 0.5 }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activeSubStep === 'images' ? '#000000' : 'transparent', color: activeSubStep === 'images' ? '#ffffff' : '#000000', fontWeight: 'bold', fontSize: '11px' }}>
-                      <ImageIcon size={12} />
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', color: '#000000' }}>2. Visual Portfolio</span>
-                    </div>
+                  <div className="text-gray-400 font-bold">➔</div>
+                  <div className={`flex items-center gap-2.5 ${activeSubStep === 'images' ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs ${activeSubStep === 'images' ? 'bg-black text-white' : 'text-black'}`}><ImageIcon size={12} /></div>
+                    <span className="font-bold text-xs text-black">2. Visual Portfolio</span>
                   </div>
                 </div>
 
                 {activeSubStep === 'details' && (
-                  <form onSubmit={handleNextSubStep} style={{ color: '#000000', fontSize: '13px' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Unique Product ID</label>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ padding: '10px 14px', border: '1px solid #000000', borderRight: 'none', borderRadius: '4px 0 0 4px', backgroundColor: '#f3f4f6', fontWeight: 'bold', color: '#374151' }}>
-                          ELLAMAE
-                        </span>
-                        <input 
-                          type="text" 
-                          value={newManualIdDigits} 
-                          onChange={(e) => setNewManualIdDigits(e.target.value.replace(/\D/g, ''))} 
-                          placeholder="e.g., 004" 
-                          maxLength={3}
-                          style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '0 4px 4px 0', color: '#000000', fontWeight: 'bold' }} 
-                        />
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginTop: '4px' }}>Prefix is locked as ELLAMAE. Please input exactly 3 sequential tracking digits.</span>
+                  <form onSubmit={handleNextSubStep} className="text-black text-sm">
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Product Title Name</label>
+                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Enter Product Name" className="w-full p-2.5 border border-black rounded font-bold text-black" />
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Product Name</label>
-                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Enter Product Name" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Product Description / Specifications</label>
+                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write overview layout logs description..." className="w-full p-2.5 border border-black rounded font-bold resize-none text-black" />
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Product Description</label>
-                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write specification or description notes..." style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold', resize: 'none' }} />
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Category</label>
-                      <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold', backgroundColor: '#ffffff' }}>
-                        <option value="Birthday Gifts">Birthday Gifts</option>
-                        <option value="Anniversary Gifts">Anniversary Gifts</option>
-                        <option value="Corporate Gifts">Corporate Gifts</option>
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Relational Category Assignment</label>
+                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-2.5 border border-black rounded font-bold bg-white text-black">
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
                       </select>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '40px' }}>
+                    <div className="grid grid-cols-2 gap-6 mb-10">
                       <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Price (₹)</label>
-                        <input type="text" value={newPrice} onChange={(e) => setNewPrice(e.target.value.replace(/\D/g, ''))} placeholder="Amount (₹)" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <label className="block font-bold mb-1">Retail Price (₹)</label>
+                        <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Amount (₹)" className="w-full p-2.5 border border-black rounded font-bold text-black" />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Stock</label>
-                        <input type="text" value={newStock} onChange={(e) => setNewStock(e.target.value.replace(/\D/g, ''))} placeholder="Count" style={{ width: '100%', padding: '10px', border: '1px solid #000000', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <label className="block font-bold mb-1">Initial Status</label>
+                        <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2.5 border border-black rounded font-bold bg-white text-black">
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e5e7eb', paddingTop: '24px', gap: '16px' }}>
-                      <button type="button" onClick={() => setShowMasterAddOverlay(false)} style={{ padding: '12px 24px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>Cancel</button>
-                      <button type="submit" style={{ padding: '12px 32px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next step</button>
+                    <div className="flex justify-end border-t border-gray-200 pt-6 gap-4">
+                      <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
+                      <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded uppercase text-xs tracking-wider">Next step</button>
                     </div>
                   </form>
                 )}
 
                 {activeSubStep === 'images' && (
-                  <div style={{ color: '#000000' }}>
-                    <label style={{ display: 'block', cursor: 'pointer', marginBottom: '24px' }}>
-                      <input type="file" accept="image/*" multiple onChange={handleRealImageUpload} style={{ display: 'none' }} />
-                      <div style={{ border: '2px dashed #000000', padding: '48px 24px', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#f9fafb' }}>
-                        <Upload size={36} style={{ color: '#000000', marginBottom: '12px' }} />
-                        <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#000000' }}>Choose Local Images</span>
+                  <div className="text-black">
+                    <label className="block cursor-pointer mb-6">
+                      <input type="file" accept="image/*" multiple onChange={handleRealImageUpload} className="hidden" />
+                      <div className="border-2 border-dashed border-black p-12 rounded-md flex flex-col items-center bg-gray-50 hover:bg-gray-100/70">
+                        <Upload size={36} className="text-black mb-3" />
+                        <span className="font-bold text-sm">Select Product Image Files (Multiple)</span>
                       </div>
                     </label>
 
-                    <span style={{ display: 'block', fontWeight: 'bold', color: '#000000', marginBottom: '16px', fontSize: '14px' }}>Select Image</span>
-                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '16px', maxHeight: '280px', overflowY: 'auto', backgroundColor: '#f9fafb', marginBottom: '40px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                        {newImages.map((url, i) => (
-                          <div key={i} style={{ width: '100%', aspectRatio: '1/1', border: '1px solid #000000', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
-                            <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        ))}
-                      </div>
+                    <span className="block font-bold mb-4 text-sm">Asset Preview Portfolio ({newImageStrings.length} selected)</span>
+                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50 mb-10 min-h-[140px]">
+                      {newImageStrings.length > 0 ? (
+                        <div className="grid grid-cols-4 gap-4">
+                          {newImageStrings.map((imgStr, idx) => (
+                            <div key={idx} className="relative aspect-square border border-black rounded overflow-hidden group bg-white">
+                              <img src={imgStr} alt="preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setNewImageStrings(prev => prev.filter((_, i) => i !== idx))}
+                                className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center min-h-[108px] text-gray-400">
+                          <span className="text-xs">No media portfolio assets selected yet</span>
+                        </div>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e5e7eb', paddingTop: '24px', gap: '16px' }}>
-                      <button type="button" onClick={() => setActiveSubStep('details')} style={{ padding: '12px 24px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>← Back</button>
-                      <button type="button" onClick={handleFinalGiftSubmit} style={{ padding: '12px 32px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle size={16} /> Save
+                    <div className="flex justify-end border-t border-gray-200 pt-6 gap-4">
+                      <button type="button" onClick={() => setActiveSubStep('details')} className="px-6 py-3 border border-black bg-white font-bold rounded">← Back</button>
+                      <button type="button" onClick={handleFinalGiftSubmit} className="px-8 py-3 bg-black text-white font-bold rounded uppercase flex items-center gap-2 text-xs">
+                        <CheckCircle size={14} /> Save Product
                       </button>
                     </div>
                   </div>
@@ -512,100 +466,96 @@ export default function GiftsManagement() {
           </div>
         )}
 
-        {/* PREVIEW + EDIT MODAL CONTAINER */}
+        {/* PREVIEW + DYNAMIC SPECIFICATIONS EDITS LAYER CONTAINER */}
         {showPreviewModal && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 40px', borderBottom: '1px solid #e5e7eb' }}>
+          <div className="absolute inset-0 z-50 flex flex-col bg-white">
+            <div className="flex justify-between items-center px-10 py-6 border-b border-gray-200 relative">
               <div>
-                <h2 style={{ fontFamily: 'serif', fontSize: '22px', fontWeight: 'bold', color: '#000000' }}>Manage Gift Asset Configs</h2>
-                <p style={{ fontSize: '12px', color: '#6b7280' }}>Update metrics and values for this portfolio item</p>
+                <h2 className="font-serif text-2xl font-bold text-black">Manage Gift Asset Configs</h2>
+                <p className="text-xs text-gray-500">Update metrics and configurations values parameters</p>
               </div>
-              <button type="button" onClick={() => setShowPreviewModal(false)} style={{ border: '1px solid #000000', backgroundColor: 'transparent', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>Exit ✕</button>
+              <button type="button" onClick={() => setShowPreviewModal(false)} className="border border-black bg-transparent px-4 py-2 rounded font-bold text-xs cursor-pointer hover:bg-gray-50">Exit ✕</button>
             </div>
 
-            <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-              <div style={{ maxWidth: '1080px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '48px' }}>
+            <div className="flex-1 p-10 overflow-y-auto">
+              <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12">
                 
+                {/* Visual View Display Layout Container */}
                 <div>
-                  <span style={{ display: 'block', fontWeight: 'bold', color: '#000000', marginBottom: '12px', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.5px' }}>Product Images Layout</span>
-                  <div style={{ border: '1px solid #000000', borderRadius: '6px', overflow: 'hidden', aspectRatio: '16/10', backgroundColor: '#f9fafb', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {editImages.length > 0 ? (
-                      <img src={editImages[activeImageIndex] || editImages[0]} alt="Active Asset" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <span className="block font-bold text-black mb-3 uppercase text-xs tracking-wider">Product Layout Assets ({editImageStrings.length} total)</span>
+                  <div className="border border-black rounded-md p-4 bg-gray-50 mb-5 min-h-[200px]">
+                    {editImageStrings.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        {editImageStrings.map((imgStr, idx) => (
+                          <div key={idx} className="relative aspect-square border border-gray-300 rounded overflow-hidden group bg-white">
+                            <img src={imgStr} alt="thumbnail" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setEditImageStrings(prev => prev.filter((_, i) => i !== idx))}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <div style={{ textAlign: 'center', color: '#9ca3af' }}>
-                        <ImageIcon size={40} style={{ margin: '0 auto 8px' }} />
-                        <span>No Active Images</span>
+                      <div className="flex flex-col items-center justify-center min-h-[168px] text-gray-400">
+                        <ImageIcon size={40} className="mx-auto mb-2" />
+                        <span className="text-xs">No Asset Graphics Found</span>
                       </div>
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '24px' }}>
-                    {editImages.map((imgUrl, index) => (
-                      <div key={index} onClick={() => setActiveImageIndex(index)} style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: index === activeImageIndex ? '2px solid #000000' : '1px solid #e5e7eb', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#ffffff', cursor: 'pointer' }}>
-                        <img src={imgUrl} alt="Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveEditImage(index); }} style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
-                      </div>
-                    ))}
-                    <label style={{ cursor: 'pointer', width: '100%', aspectRatio: '1/1', border: '1px dashed #000000', borderRadius: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
-                      <input type="file" accept="image/*" multiple onChange={handleEditImageUpload} style={{ display: 'none' }} />
-                      <Plus size={16} style={{ color: '#000000' }} />
-                      <span style={{ fontSize: '9px', fontWeight: 'bold', marginTop: '2px' }}>Add</span>
-                    </label>
-                  </div>
+                  <label className="cursor-pointer border border-dashed border-black rounded p-4 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
+                    <input type="file" accept="image/*" multiple onChange={handleEditImageUpload} className="hidden" />
+                    <Upload size={18} className="text-black mb-1" />
+                    <span className="text-xs font-bold">Add Additional Product Asset Graphics</span>
+                  </label>
                 </div>
 
+                {/* Form Configurations Fields Module Layer */}
                 <div>
-                  <form onSubmit={handleUpdateGiftSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%', color: '#000000', fontSize: '13px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <form onSubmit={handleUpdateGiftSubmit} className="flex flex-col text-black text-sm h-full">
+                    <div className="grid grid-cols-2 gap-4 mb-5">
                       <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Product Name</label>
-                        <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <label className="block font-bold mb-1">Product Identity Title</label>
+                        <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Category Hierarchy</label>
-                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold', backgroundColor: '#ffffff' }}>
-                          <option value="Birthday Gifts">Birthday Gifts</option>
-                          <option value="Anniversary Gifts">Anniversary Gifts</option>
-                          <option value="Corporate Gifts">Corporate Gifts</option>
+                        <label className="block font-bold mb-1">Parent Category Map</label>
+                        <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold bg-white">
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Product Specifications / Description</label>
-                      <textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold', resize: 'none' }} />
+                    <div className="mb-5">
+                      <label className="block font-bold mb-1">Detailed Item Specifications</label>
+                      <textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold resize-none" />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
                       <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Price (₹)</label>
-                        <input type="text" value={editPrice} onChange={(e) => setEditPrice(e.target.value.replace(/\D/g, ''))} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
+                        <label className="block font-bold mb-1">Price Matrix (₹)</label>
+                        <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Stock Inventory</label>
-                        <input type="text" value={editStock} onChange={(e) => setEditStock(e.target.value.replace(/\D/g, ''))} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Best Seller</label>
-                        <select value={editBestSeller} onChange={(e) => setEditBestSeller(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }}>
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '4px' }}>Status Log</label>
-                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }}>
+                        <label className="block font-bold mb-1">Status Mode Log</label>
+                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold bg-white">
                           <option value="Active">Active</option>
                           <option value="Inactive">Inactive</option>
                         </select>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '20px', borderTop: '1px solid #e5e7eb', marginTop: 'auto' }}>
-                      <button type="button" onClick={() => selectedGift && handleDeleteGift(selectedGift.id)} style={{ padding: '10px 20px', backgroundColor: '#dc2626', color: '#ffffff', fontWeight: 'bold', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Delete Asset Log</button>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <button type="button" onClick={() => setShowPreviewModal(false)} style={{ padding: '10px 20px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>Cancel</button>
-                        <button type="submit" style={{ padding: '10px 32px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Update Changes</button>
+                    <div className="flex justify-between pt-5 border-t border-gray-200 mt-auto gap-4">
+                      <button type="button" onClick={() => selectedGift && handleDeleteGift(selectedGift.id)} className="px-6 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all">Delete Asset Log</button>
+                      <div className="flex gap-3">
+                        <button type="button" onClick={() => setShowPreviewModal(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
+                        <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded hover:bg-gray-900 transition-all">Update Changes</button>
                       </div>
                     </div>
                   </form>
@@ -615,41 +565,6 @@ export default function GiftsManagement() {
             </div>
           </div>
         )}
-
-        {/* SMALL BACKUP SECONDARY EDIT MODAL BOX */}
-        {showEditDeleteModal && (
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '6px', width: '100%', maxWidth: '440px', color: '#000000' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <h3 style={{ fontWeight: 'bold', fontSize: '16px' }}>Quick Context Update</h3>
-                <button onClick={() => setShowEditDeleteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-              </div>
-              <form onSubmit={handleUpdateGiftSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '2px' }}>Product Name</label>
-                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '2px' }}>Status</label>
-                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #9ca3af', borderRadius: '4px', color: '#000000', fontWeight: 'bold' }}>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
-                  <button type="button" onClick={() => selectedGift && handleDeleteGift(selectedGift.id)} style={{ padding: '8px 16px', backgroundColor: '#dc2626', color: '#ffffff', fontWeight: 'bold', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Delete</button>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button type="button" onClick={() => setShowEditDeleteModal(false)} style={{ padding: '8px 16px', border: '1px solid #000000', backgroundColor: '#ffffff', color: '#000000', fontWeight: 'bold', borderRadius: '4px' }}>Cancel</button>
-                    <button type="submit" style={{ padding: '8px 20px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Update</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
       </main>
     </div>
   );

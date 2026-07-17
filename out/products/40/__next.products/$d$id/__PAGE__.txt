@@ -1,8 +1,0 @@
-1:"$Sreact.fragment"
-2:I[63780,["/_next/static/chunks/05-c3ty_6dwfk.js","/_next/static/chunks/14mrh2-p_w84d.js","/_next/static/chunks/1006-ubljna34.js","/_next/static/chunks/1okmjudm-xa9w.js"],"Navbar"]
-3:I[80334,["/_next/static/chunks/05-c3ty_6dwfk.js","/_next/static/chunks/14mrh2-p_w84d.js","/_next/static/chunks/1006-ubljna34.js","/_next/static/chunks/1okmjudm-xa9w.js"],"ProductDetailClient"]
-4:I[76841,["/_next/static/chunks/05-c3ty_6dwfk.js","/_next/static/chunks/14mrh2-p_w84d.js","/_next/static/chunks/1006-ubljna34.js","/_next/static/chunks/1okmjudm-xa9w.js"],"Footer"]
-5:I[97367,["/_next/static/chunks/05-c3ty_6dwfk.js","/_next/static/chunks/14mrh2-p_w84d.js"],"OutletBoundary"]
-6:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[[["$","$L2",null,{"variant":"hero"}],["$","main",null,{"className":"bg-white","children":["$","$L3",null,{"product":{"id":40,"name":"Festive Diwali Celebration Box","category":"Gift Hampers","price":6200,"image":"https://images.unsplash.com/photo-1604719312566-8912e9667d9f?w=600&auto=format&fit=crop&q=80","description":"Curated festive hamper with dry fruits, premium mithai, diyas, and decorative brass accents.","tag":"Festive"}}]}],["$","$L4",null,{}]],[["$","script","script-0",{"src":"/_next/static/chunks/1006-ubljna34.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/1okmjudm-xa9w.js","async":true}]],["$","$L5",null,{"children":["$","$6",null,{"name":"Next.MetadataOutlet","children":"$@7"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"HURZq7KjGMvOQHs5ChjCx"}
-7:null
