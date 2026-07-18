@@ -38,10 +38,17 @@ export async function initializeDatabase() {
       category_id INT NOT NULL,
       title VARCHAR(255) NOT NULL,
       price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      stacks INT NOT NULL DEFAULT 0,
       description TEXT,
       status VARCHAR(50) DEFAULT 'Active'
     ) ENGINE=InnoDB;
   `);
+
+  try {
+    await db.query('ALTER TABLE gifts ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price');
+  } catch (err) {
+    // Ignore error if column already exists
+  }
 
   // Create Gift Images Table
   await db.query(`

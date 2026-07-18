@@ -21,6 +21,7 @@ export default function GiftsManagement() {
   const [newDescription, setNewDescription] = useState('');
   const [newCategoryId, setNewCategoryId] = useState('');
   const [newPrice, setNewPrice] = useState('');
+  const [newStacks, setNewStacks] = useState('0');
   const [newStatus, setNewStatus] = useState('Active');
   const [newImageStrings, setNewImageStrings] = useState<string[]>([]);
 
@@ -29,6 +30,7 @@ export default function GiftsManagement() {
   const [editDescription, setEditDescription] = useState('');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editPrice, setEditPrice] = useState('');
+  const [editStacks, setEditStacks] = useState('0');
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
 
@@ -148,6 +150,7 @@ export default function GiftsManagement() {
           category_id: Number(newCategoryId),
           title: newName,
           price: Number(newPrice) || 0,
+          stacks: Number(newStacks) || 0,
           description: newDescription,
           status: newStatus,
           images: newImageStrings
@@ -163,7 +166,7 @@ export default function GiftsManagement() {
       const result = await response.json();
       if (result.status === 'success') {
         // Clear all input states
-        setNewName(''); setNewDescription(''); setNewPrice(''); setNewImageStrings([]);
+        setNewName(''); setNewDescription(''); setNewPrice(''); setNewStacks('0'); setNewImageStrings([]);
         setActiveSubStep('details');
         
         // Exit structural form overlay workspace panel section mapping 
@@ -186,6 +189,7 @@ export default function GiftsManagement() {
     setEditDescription(gift.description);
     setEditCategoryId(String(gift.category_id));
     setEditPrice(String(gift.price));
+    setEditStacks(String(gift.stacks || 0));
     setEditStatus(gift.status);
     setEditImageStrings(gift.images || []);
     setShowPreviewModal(true);
@@ -206,6 +210,7 @@ export default function GiftsManagement() {
           category_id: Number(editCategoryId),
           title: editName,
           price: Number(editPrice) || 0,
+          stacks: Number(editStacks) || 0,
           description: editDescription,
           status: editStatus,
           images: editImageStrings
@@ -329,6 +334,7 @@ export default function GiftsManagement() {
                 <th className="py-4 px-4 text-black font-bold">Product Title</th>
                 <th className="py-4 px-4 text-black font-bold">Description Specifications</th>
                 <th className="py-4 px-4 text-black font-bold">Price</th>
+                <th className="py-4 px-4 text-black font-bold">Stacks</th>
                 <th className="py-4 px-4 text-black font-bold">Status</th>
                 <th className="py-4 px-4 text-center text-black font-bold">Actions</th>
               </tr>
@@ -359,6 +365,7 @@ export default function GiftsManagement() {
                       <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
                       <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
                       <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
+                      <td className="py-4 px-4 font-bold text-gray-950">{gift.stacks}</td>
                       <td className="py-4 px-4">
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
                           gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
@@ -424,10 +431,14 @@ export default function GiftsManagement() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6 mb-10">
+                    <div className="grid grid-cols-3 gap-4 mb-10">
                       <div>
                         <label className="block font-bold mb-1">Retail Price (₹)</label>
                         <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Amount (₹)" className="w-full p-2.5 border border-black rounded font-bold text-black" />
+                      </div>
+                      <div>
+                        <label className="block font-bold mb-1">Stacks</label>
+                        <input type="number" value={newStacks} onChange={(e) => setNewStacks(e.target.value)} placeholder="Stacks count" className="w-full p-2.5 border border-black rounded font-bold text-black" />
                       </div>
                       <div>
                         <label className="block font-bold mb-1">Initial Status</label>
@@ -563,10 +574,14 @@ export default function GiftsManagement() {
                       <textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold resize-none" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="grid grid-cols-3 gap-4 mb-8">
                       <div>
                         <label className="block font-bold mb-1">Price Matrix (₹)</label>
                         <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
+                      </div>
+                      <div>
+                        <label className="block font-bold mb-1">Stacks</label>
+                        <input type="number" value={editStacks} onChange={(e) => setEditStacks(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
                       </div>
                       <div>
                         <label className="block font-bold mb-1">Status Mode Log</label>

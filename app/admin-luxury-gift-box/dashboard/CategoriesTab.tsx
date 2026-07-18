@@ -7,6 +7,7 @@ const API_URL = "/api/categories";
 export default function CategoriesManagement() {
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentStatusTab, setCurrentStatusTab] = useState<'Active' | 'Inactive'>('Active');
   
   // Overlay & Modal Setup
   const [showMasterAddOverlay, setShowMasterAddOverlay] = useState(false);
@@ -30,9 +31,9 @@ export default function CategoriesManagement() {
   // 1. READ & DYNAMIC SEARCH PIPELINE
   const fetchCategories = async (search = "") => {
     try {
-      let url = API_URL;
+      let url = `${API_URL}?status=all`;
       if (search) {
-        url += `?search=${encodeURIComponent(search)}`;
+        url += `&search=${encodeURIComponent(search)}`;
       }
       const res = await fetch(url);
       const data = await res.json();
@@ -222,6 +223,30 @@ export default function CategoriesManagement() {
           </button>
         </div>
 
+        {/* Status Toggle Buttons */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setCurrentStatusTab('Active')}
+            className={`px-4 py-2 text-xs font-bold rounded border transition-all ${
+              currentStatusTab === 'Active'
+                ? 'bg-black text-white border-black'
+                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setCurrentStatusTab('Inactive')}
+            className={`px-4 py-2 text-xs font-bold rounded border transition-all ${
+              currentStatusTab === 'Inactive'
+                ? 'bg-black text-white border-black'
+                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Inactive
+          </button>
+        </div>
+
         {/* Live Search Trigger Filter Input Box */}
         <div className="relative max-w-md mb-6 flex items-center">
           <Search size={16} className="text-gray-500 absolute left-3 z-10 pointer-events-none" />
@@ -251,12 +276,14 @@ export default function CategoriesManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {categories.length === 0 ? (
+              {categories.filter((cat) => cat.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center p-6 text-gray-400">No category parameters found inside active database indexes.</td>
+                  <td colSpan={6} className="text-center p-6 text-gray-400">No {currentStatusTab.toLowerCase()} categories found.</td>
                 </tr>
               ) : (
-                categories.map((category, index) => (
+                categories
+                  .filter((cat) => cat.status === currentStatusTab)
+                  .map((category, index) => (
                   <tr key={category.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-4 px-4 font-bold text-gray-900">{index + 1}</td>
                     <td className="py-2 px-4">

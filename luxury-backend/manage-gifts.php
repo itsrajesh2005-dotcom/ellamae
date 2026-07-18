@@ -27,6 +27,7 @@ try {
         category_id INT NOT NULL,
         title VARCHAR(255) NOT NULL,
         price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        stacks INT NOT NULL DEFAULT 0,
         description TEXT,
         status VARCHAR(50) DEFAULT 'Active'
     ) ENGINE=InnoDB;";
@@ -34,6 +35,8 @@ try {
     if (!$conn->query($createGiftsTable)) {
         throw new Exception("Gifts table creation failed: " . $conn->error);
     }
+
+    $conn->query("ALTER TABLE gifts ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price");
 
     // 2. Create the separate gift_images table for decoupled image storage
     $createGiftImagesTable = "CREATE TABLE IF NOT EXISTS gift_images (
@@ -60,52 +63,46 @@ try {
         $searchId = str_replace("ELLAMAE", "", $search);
 
         $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
+        $categoryIdParam = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
+
+        $where = [];
+        $params = [];
+        $types = "";
 
         if ($statusParam !== 'all') {
-            if ($search != "") {
-                $sql = "SELECT g.*, gi.image_path 
-                        FROM gifts g 
-                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
-                        WHERE g.status = ? AND (g.title LIKE ? OR g.description LIKE ? OR g.id = ?)
-                        ORDER BY g.id DESC";
-                $stmt = $conn->prepare($sql);
-                if ($stmt) {
-                    $searchParam = "%" . $search . "%";
-                    $stmt->bind_param("ssss", $statusParam, $searchParam, $searchParam, $searchId);
-                }
-            } else {
-                $sql = "SELECT g.*, gi.image_path 
-                        FROM gifts g 
-                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
-                        WHERE g.status = ?
-                        ORDER BY g.id DESC";
-                $stmt = $conn->prepare($sql);
-                if ($stmt) {
-                    $stmt->bind_param("s", $statusParam);
-                }
-            }
-        } else {
-            if ($search != "") {
-                $sql = "SELECT g.*, gi.image_path 
-                        FROM gifts g 
-                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
-                        WHERE g.title LIKE ? OR g.description LIKE ? OR g.id = ?
-                        ORDER BY g.id DESC";
-                $stmt = $conn->prepare($sql);
-                if ($stmt) {
-                    $searchParam = "%" . $search . "%";
-                    $stmt->bind_param("sss", $searchParam, $searchParam, $searchId);
-                }
-            } else {
-                $sql = "SELECT g.*, gi.image_path 
-                        FROM gifts g 
-                        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
-                        ORDER BY g.id DESC";
-                $stmt = $conn->prepare($sql);
-            }
+            $where[] = "g.status = ?";
+            $params[] = $statusParam;
+            $types .= "s";
         }
 
+        if ($categoryIdParam > 0) {
+            $where[] = "g.category_id = ?";
+            $params[] = $categoryIdParam;
+            $types .= "i";
+        }
+
+        if ($search != "") {
+            $where[] = "(g.title LIKE ? OR g.description LIKE ? OR g.id = ?)";
+            $params[] = "%" . $search . "%";
+            $params[] = "%" . $search . "%";
+            $params[] = $searchId;
+            $types .= "sss";
+        }
+
+        $sql = "SELECT g.*, gi.image_path 
+                FROM gifts g 
+                LEFT JOIN gift_images gi ON g.id = gi.gift_id";
+
+        if (count($where) > 0) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+        $sql .= " ORDER BY g.id DESC";
+
+        $stmt = $conn->prepare($sql);
         if ($stmt) {
+            if (count($params) > 0) {
+                $stmt->bind_param($types, ...$params);
+            }
             $stmt->execute();
             $result = $stmt->get_result();
             
@@ -118,6 +115,7 @@ try {
                         "category_id" => $row['category_id'],
                         "title" => $row['title'],
                         "price" => $row['price'],
+                        "stacks" => intval($row['stacks'] ?? 0),
                         "description" => $row['description'],
                         "status" => $row['status'],
                         "display_id" => "ELLAMAE" . $row['id'],
@@ -147,6 +145,7 @@ try {
         $category_id = intval($input['category_id'] ?? 0);
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);
+        $stacks = intval($input['stacks'] ?? 0);
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
         $images = $input['images'] ?? []; // Array of images in base64
@@ -157,9 +156,9 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO gifts (category_id, title, price, description, status) VALUES (?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO gifts (category_id, title, price, stacks, description, status) VALUES (?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("isdss", $category_id, $title, $price, $description, $status);
+            $stmt->bind_param("isdiss", $category_id, $title, $price, $stacks, $description, $status);
 
             if ($stmt->execute()) {
                 $gift_id = $conn->insert_id;
@@ -197,6 +196,7 @@ try {
         $category_id = intval($input['category_id'] ?? 0);
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);
+        $stacks = intval($input['stacks'] ?? 0);
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
         $images = $input['images'] ?? []; // Array of images in base64
@@ -207,9 +207,9 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, description = ?, status = ? WHERE id = ?");
+        $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
         if ($stmt) {
-            $stmt->bind_param("isdssi", $category_id, $title, $price, $description, $status, $id);
+            $stmt->bind_param("isdissi", $category_id, $title, $price, $stacks, $description, $status, $id);
 
             if ($stmt->execute()) {
                 $stmt->close();

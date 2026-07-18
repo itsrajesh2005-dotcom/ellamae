@@ -8,18 +8,27 @@ export async function GET(request: NextRequest) {
     
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search')?.trim() || '';
+    const status = searchParams.get('status') || 'Active';
     
-    let query = 'SELECT * FROM category ORDER BY id ASC';
+    let query = 'SELECT * FROM category';
     let params: any[] = [];
+    let whereClauses: string[] = [];
+    
+    if (status !== 'all') {
+      whereClauses.push('status = ?');
+      params.push(status);
+    }
     
     if (search) {
-      query = `
-        SELECT * FROM category 
-        WHERE name LIKE ? OR description LIKE ? 
-        ORDER BY id ASC
-      `;
-      params = [`%${search}%`, `%${search}%`];
+      whereClauses.push('(name LIKE ? OR description LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
     }
+    
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
+    }
+    
+    query += ' ORDER BY id ASC';
     
     const [rows] = await db.query(query, params);
     return NextResponse.json(rows);

@@ -46,23 +46,37 @@ try {
         if (isset($_GET['search'])) {
             $search = trim($_GET['search']);
         }
+        
+        $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
 
-        if ($search != "") {
-            $sql = "SELECT * FROM category
-                    WHERE name LIKE ?
-                    OR description LIKE ?
-                    ORDER BY id ASC";
-            $stmt = $conn->prepare($sql);
-            if ($stmt) {
-                $searchParam = "%" . $search . "%";
-                $stmt->bind_param("ss", $searchParam, $searchParam);
-            }
-        } else {
-            $sql = "SELECT * FROM category ORDER BY id ASC";
-            $stmt = $conn->prepare($sql);
+        $where = [];
+        $params = [];
+        $types = "";
+
+        if ($statusParam !== 'all') {
+            $where[] = "status = ?";
+            $params[] = $statusParam;
+            $types .= "s";
         }
 
+        if ($search != "") {
+            $where[] = "(name LIKE ? OR description LIKE ?)";
+            $params[] = "%" . $search . "%";
+            $params[] = "%" . $search . "%";
+            $types .= "ss";
+        }
+
+        $sql = "SELECT * FROM category";
+        if (count($where) > 0) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+        $sql .= " ORDER BY id ASC";
+
+        $stmt = $conn->prepare($sql);
         if ($stmt) {
+            if (count($params) > 0) {
+                $stmt->bind_param($types, ...$params);
+            }
             $stmt->execute();
             $result = $stmt->get_result();
             $categories = [];

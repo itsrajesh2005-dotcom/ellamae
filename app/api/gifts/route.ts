@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search')?.trim() || '';
     const status = searchParams.get('status') || 'Active';
+    const category_id = searchParams.get('category_id');
     
     // Strip "ELLAMAE" to search by ID
     const searchId = search.replace(/^ELLAMAE/i, '');
@@ -23,6 +24,11 @@ export async function GET(request: NextRequest) {
     if (status !== 'all') {
       whereClauses.push('g.status = ?');
       params.push(status);
+    }
+
+    if (category_id) {
+      whereClauses.push('g.category_id = ?');
+      params.push(parseInt(category_id, 10));
     }
     
     if (search) {
@@ -48,6 +54,7 @@ export async function GET(request: NextRequest) {
           category_id: row.category_id,
           title: row.title,
           price: parseFloat(row.price || '0'),
+          stacks: parseInt(row.stacks || '0', 10),
           description: row.description,
           status: row.status,
           display_id: `ELLAMAE${row.id}`,
@@ -81,6 +88,7 @@ export async function POST(request: NextRequest) {
       const category_id = parseInt(body.category_id || '0', 10);
       const title = body.title || '';
       const price = parseFloat(body.price || '0');
+      const stacks = parseInt(body.stacks || '0', 10);
       const description = body.description || '';
       const status = body.status || 'Active';
       const images = body.images || []; // Array of Base64 strings
@@ -93,8 +101,8 @@ export async function POST(request: NextRequest) {
       }
       
       const [result]: any = await db.query(
-        'INSERT INTO gifts (category_id, title, price, description, status) VALUES (?, ?, ?, ?, ?)',
-        [category_id, title, price, description, status]
+        'INSERT INTO gifts (category_id, title, price, stacks, description, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [category_id, title, price, stacks, description, status]
       );
       
       const gift_id = result.insertId;
@@ -123,6 +131,7 @@ export async function POST(request: NextRequest) {
       const category_id = parseInt(body.category_id || '0', 10);
       const title = body.title || '';
       const price = parseFloat(body.price || '0');
+      const stacks = parseInt(body.stacks || '0', 10);
       const description = body.description || '';
       const status = body.status || 'Active';
       const images = body.images || []; // Array of Base64 strings
@@ -135,8 +144,8 @@ export async function POST(request: NextRequest) {
       }
       
       await db.query(
-        'UPDATE gifts SET category_id = ?, title = ?, price = ?, description = ?, status = ? WHERE id = ?',
-        [category_id, title, price, description, status, id]
+        'UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?',
+        [category_id, title, price, stacks, description, status, id]
       );
       
       // Delete old images

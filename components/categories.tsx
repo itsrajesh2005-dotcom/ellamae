@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Gift, Heart, Gem, Briefcase, Package, Sparkles, Car, PenLine, ShoppingBag, Star, ArrowRight } from "lucide-react"
@@ -145,6 +146,28 @@ function CategoryCard({ c, i }: { c: (typeof categories)[number]; i: number }) {
 }
 
 export function Categories() {
+  const [activeNames, setActiveNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setActiveNames(data.map((cat: any) => cat.name));
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const displayedCategories = useMemo(() => {
+    if (loading || activeNames.length === 0) {
+      return categories;
+    }
+    return categories.filter((c) => activeNames.includes(c.name));
+  }, [loading, activeNames]);
+
   return (
     <section id="categories" className="relative mx-auto max-w-7xl px-6 py-24 lg:px-10 bg-white">
       {/* Section header */}
@@ -173,7 +196,7 @@ export function Categories() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((c, i) => (
+        {displayedCategories.map((c, i) => (
           <CategoryCard key={c.name} c={c} i={i} />
         ))}
       </div>

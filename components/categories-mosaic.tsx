@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { Reveal } from "./reveal"
 
@@ -248,6 +249,28 @@ function GridCard({ item }: { item: (typeof items)[number] }) {
 
 /* ─── exported section ─────────────────────────────────────────────────────── */
 export function CategoriesMosaic() {
+  const [activeNames, setActiveNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setActiveNames(data.map((cat: any) => cat.name));
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const displayedItems = useMemo(() => {
+    if (loading || activeNames.length === 0) {
+      return items;
+    }
+    return items.filter((item) => activeNames.includes(item.name));
+  }, [loading, activeNames]);
+
   return (
     <section id="categories" className="bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
@@ -264,14 +287,14 @@ export function CategoriesMosaic() {
 
         {/* ── Desktop grid (md+) — 12 columns asymmetric ─────────────────── */}
         <div className="hidden md:grid grid-cols-12 gap-6 md:gap-8">
-          {items.map((item) => (
+          {displayedItems.map((item) => (
             <GridCard key={item.slug} item={item} />
           ))}
         </div>
 
         {/* ── Mobile grid — single column, featured cards taller ──────────── */}
         <div className="grid grid-cols-1 gap-4 md:hidden">
-          {items.map((item) => (
+          {displayedItems.map((item) => (
             <div
               key={item.slug}
               className={item.large ? "h-[380px]" : (item as any).horizontal ? "h-[220px]" : "h-[280px]"}
