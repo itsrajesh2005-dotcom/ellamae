@@ -50,6 +50,17 @@ export async function initializeDatabase() {
     // Ignore error if column already exists
   }
 
+  try {
+    await db.query('ALTER TABLE gifts ADD COLUMN image_path LONGTEXT AFTER status');
+  } catch (err) {
+    // Ignore error if column already exists
+  }
+
+  try {
+    await db.query('ALTER TABLE gifts MODIFY COLUMN image_path LONGTEXT');
+    await db.query('ALTER TABLE gifts MODIFY COLUMN stacks INT NOT NULL DEFAULT 0');
+  } catch (err) {}
+
   // Create Gift Images Table
   await db.query(`
     CREATE TABLE IF NOT EXISTS gift_images (
@@ -60,5 +71,8 @@ export async function initializeDatabase() {
     ) ENGINE=InnoDB;
   `);
 
+  try {
+    await db.query('ALTER TABLE gift_images MODIFY COLUMN image_path LONGTEXT NOT NULL');
+  } catch (err) {}
 }
 

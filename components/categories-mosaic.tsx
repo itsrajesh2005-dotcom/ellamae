@@ -249,15 +249,19 @@ function GridCard({ item }: { item: (typeof items)[number] }) {
 
 /* ─── exported section ─────────────────────────────────────────────────────── */
 export function CategoriesMosaic() {
-  const [activeNames, setActiveNames] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("/api/categories?status=Active")
+      .then((res) => {
+        if (!res.ok) return fetch("http://localhost/luxury-backend/manage-categories.php?status=Active");
+        return res;
+      })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setActiveNames(data.map((cat: any) => cat.name));
+          setDbCategories(data);
         }
       })
       .catch((err) => console.error(err))
@@ -265,11 +269,29 @@ export function CategoriesMosaic() {
   }, []);
 
   const displayedItems = useMemo(() => {
-    if (loading || activeNames.length === 0) {
-      return items;
+    if (dbCategories.length > 0) {
+      return dbCategories.map((cat: any, idx: number) => {
+        const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const matchedStatic = items.find((i) => i.name.toLowerCase() === cat.name.toLowerCase() || i.slug === slug);
+        return {
+          slug: slug,
+          name: cat.name,
+          desc: cat.description || (matchedStatic ? matchedStatic.desc : "Explore our exclusive collection"),
+          cta: matchedStatic ? matchedStatic.cta : "Explore Collection",
+          icon: matchedStatic ? matchedStatic.icon : (
+            <svg className="w-7 h-7 text-white/90" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25V21a.75.75 0 01-.75.75H3.75A.75.75 0 013 21v-9.75M21 11.25A2.25 2.25 0 0018.75 9h-1.5M21 11.25H3M3 11.25A2.25 2.25 0 015.25 9h1.5M3 11.25v0" />
+            </svg>
+          ),
+          image: cat.banner_image || (matchedStatic ? matchedStatic.image : "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?w=600&auto=format&fit=crop&q=80"),
+          col: idx % 3 === 0 ? "md:col-span-8" : "md:col-span-4",
+          height: "h-[300px]",
+          large: idx % 3 === 0,
+        };
+      });
     }
-    return items.filter((item) => activeNames.includes(item.name));
-  }, [loading, activeNames]);
+    return items;
+  }, [dbCategories]);
 
   return (
     <section id="categories" className="bg-white py-20 sm:py-28">

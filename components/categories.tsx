@@ -146,15 +146,19 @@ function CategoryCard({ c, i }: { c: (typeof categories)[number]; i: number }) {
 }
 
 export function Categories() {
-  const [activeNames, setActiveNames] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("/api/categories?status=Active")
+      .then((res) => {
+        if (!res.ok) return fetch("http://localhost/luxury-backend/manage-categories.php?status=Active");
+        return res;
+      })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setActiveNames(data.map((cat: any) => cat.name));
+          setDbCategories(data);
         }
       })
       .catch((err) => console.error(err))
@@ -162,11 +166,24 @@ export function Categories() {
   }, []);
 
   const displayedCategories = useMemo(() => {
-    if (loading || activeNames.length === 0) {
-      return categories;
+    if (dbCategories.length > 0) {
+      return dbCategories.map((cat: any) => {
+        const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const matched = categories.find((c) => c.name.toLowerCase() === cat.name.toLowerCase() || c.slug === slug);
+        return {
+          name: cat.name,
+          desc: cat.description || (matched ? matched.desc : "Celebrate special moments"),
+          icon: matched ? matched.icon : Gift,
+          slug: slug,
+          color: matched ? matched.color : "from-rose-500/20 to-pink-400/10",
+          iconColor: matched ? matched.iconColor : "text-rose-500",
+          iconBg: matched ? matched.iconBg : "bg-rose-50 border-rose-200/60",
+          accent: matched ? matched.accent : "#f43f5e",
+        };
+      });
     }
-    return categories.filter((c) => activeNames.includes(c.name));
-  }, [loading, activeNames]);
+    return categories;
+  }, [dbCategories]);
 
   return (
     <section id="categories" className="relative mx-auto max-w-7xl px-6 py-24 lg:px-10 bg-white">

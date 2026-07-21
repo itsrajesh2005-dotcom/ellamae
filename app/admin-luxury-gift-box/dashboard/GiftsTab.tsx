@@ -34,13 +34,18 @@ export default function GiftsManagement() {
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
 
-  const GIFTS_API = '/api/gifts';
-  const CATEGORIES_API = '/api/categories';
+  const PHP_GIFTS_API = 'http://localhost/luxury-backend/manage-gifts.php';
+  const PHP_CATEGORIES_API = 'http://localhost/luxury-backend/manage-categories.php';
+  const NEXT_GIFTS_API = '/api/gifts';
+  const NEXT_CATEGORIES_API = '/api/categories';
 
   // 1. DYNAMIC CATEGORIES RETRIEVAL HOOK
   const fetchLiveCategories = async () => {
     try {
-      const res = await fetch(CATEGORIES_API);
+      let res = await fetch(NEXT_CATEGORIES_API).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(PHP_CATEGORIES_API);
+      }
       const data = await res.json();
       if (Array.isArray(data)) {
         setCategories(data);
@@ -56,11 +61,16 @@ export default function GiftsManagement() {
   // 2. READ / SEARCH GIFTS WITH BACKEND INTEGRATION 
   const fetchGiftsFromServer = async (search = "") => {
     try {
-      let url = `${GIFTS_API}?status=all`;
+      let url = `${NEXT_GIFTS_API}?status=all`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
       }
-      const response = await fetch(url);
+      let response = await fetch(url).catch(() => null);
+      if (!response || !response.ok) {
+        let fallbackUrl = `${PHP_GIFTS_API}?status=all`;
+        if (search) fallbackUrl += `&search=${encodeURIComponent(search)}`;
+        response = await fetch(fallbackUrl);
+      }
       const data = await response.json();
       if (Array.isArray(data)) {
         setGifts(data);
@@ -83,24 +93,48 @@ export default function GiftsManagement() {
   };
 
   // Encodes incoming multiple files binary logs completely to pure Base64 strings
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+            resolve(event.target?.result as string || '');
+          }
+        };
+        img.onerror = reject;
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleRealImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const fileList = Array.from(files);
-      const promises = fileList.map(file => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (typeof reader.result === 'string') {
-              resolve(reader.result);
-            } else {
-              reject(new Error("File conversion failed"));
-            }
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      });
+      const promises = fileList.map(file => compressImage(file));
 
       Promise.all(promises).then(base64Strings => {
         setNewImageStrings(prev => [...prev, ...base64Strings]);
@@ -114,20 +148,7 @@ export default function GiftsManagement() {
     const files = e.target.files;
     if (files && files.length > 0) {
       const fileList = Array.from(files);
-      const promises = fileList.map(file => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (typeof reader.result === 'string') {
-              resolve(reader.result);
-            } else {
-              reject(new Error("File conversion failed"));
-            }
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      });
+      const promises = fileList.map(file => compressImage(file));
 
       Promise.all(promises).then(base64Strings => {
         setEditImageStrings(prev => [...prev, ...base64Strings]);
@@ -142,20 +163,29 @@ export default function GiftsManagement() {
     if (!newName.trim()) return alert("Product Title can't be empty");
 
     try {
-      const response = await fetch(GIFTS_API, {
+      const payload = {
+        action: 'CREATE',
+        category_id: Number(newCategoryId),
+        title: newName,
+        price: Number(newPrice) || 0,
+        stacks: Number(newStacks) || 0,
+        description: newDescription,
+        status: newStatus,
+        images: newImageStrings
+      };
+      let response = await fetch(NEXT_GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'CREATE',
-          category_id: Number(newCategoryId),
-          title: newName,
-          price: Number(newPrice) || 0,
-          stacks: Number(newStacks) || 0,
-          description: newDescription,
-          status: newStatus,
-          images: newImageStrings
-        })
-      });
+        body: JSON.stringify(payload)
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch(PHP_GIFTS_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
       
       if (!response.ok) {
         const text = await response.text();
@@ -187,11 +217,21 @@ export default function GiftsManagement() {
     setSelectedGift(gift);
     setEditName(gift.title);
     setEditDescription(gift.description);
-    setEditCategoryId(String(gift.category_id));
+    setEditCategoryId(String(gift.category_id || (categories.length > 0 ? categories[0].id : '1')));
     setEditPrice(String(gift.price));
-    setEditStacks(String(gift.stacks || 0));
+    setEditStacks(String(gift.stacks !== undefined && gift.stacks !== null ? gift.stacks : (gift.stack !== undefined ? gift.stack : 0)));
     setEditStatus(gift.status);
-    setEditImageStrings(gift.images || []);
+    const parsedImages = (() => {
+      if (Array.isArray(gift.images) && gift.images.length > 0) return gift.images.filter(Boolean);
+      if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {
+        try { return JSON.parse(gift.images); } catch (e) {}
+      }
+      if (typeof gift.images === 'string' && gift.images.length > 0) return [gift.images];
+      if (typeof gift.image === 'string' && gift.image.length > 0) return [gift.image];
+      if (typeof gift.image_path === 'string' && gift.image_path.length > 0) return [gift.image_path];
+      return [];
+    })();
+    setEditImageStrings(parsedImages);
     setShowPreviewModal(true);
   };
 
@@ -201,21 +241,30 @@ export default function GiftsManagement() {
     if (!selectedGift) return;
 
     try {
-      const response = await fetch(GIFTS_API, {
+      const payload = {
+        action: 'UPDATE',
+        id: selectedGift.id,
+        category_id: Number(editCategoryId) || (categories.length > 0 ? Number(categories[0].id) : 1),
+        title: editName,
+        price: Number(editPrice) || 0,
+        stacks: Number(editStacks) || 0,
+        description: editDescription,
+        status: editStatus,
+        images: editImageStrings
+      };
+      let response = await fetch(NEXT_GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'UPDATE',
-          id: selectedGift.id,
-          category_id: Number(editCategoryId),
-          title: editName,
-          price: Number(editPrice) || 0,
-          stacks: Number(editStacks) || 0,
-          description: editDescription,
-          status: editStatus,
-          images: editImageStrings
-        })
-      });
+        body: JSON.stringify(payload)
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch(PHP_GIFTS_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!response.ok) {
         const text = await response.text();
@@ -240,14 +289,20 @@ export default function GiftsManagement() {
     if (!confirm("Are you confident about completely erasing this distinct item?")) return;
 
     try {
-      const response = await fetch(GIFTS_API, {
+      const payload = { action: 'DELETE', id: id };
+      let response = await fetch(NEXT_GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'DELETE',
-          id: id
-        })
-      });
+        body: JSON.stringify(payload)
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch(PHP_GIFTS_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!response.ok) {
         const text = await response.text();
@@ -342,44 +397,65 @@ export default function GiftsManagement() {
             <tbody className="divide-y divide-gray-100 text-xs">
               {gifts.filter((gift) => gift.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center p-6 text-gray-400">No {currentStatusTab.toLowerCase()} tracking records matches current index criteria.</td>
+                  <td colSpan={8} className="text-center p-6 text-gray-400">No {currentStatusTab.toLowerCase()} tracking records matches current index criteria.</td>
                 </tr>
               ) : (
                 gifts
                   .filter((gift) => gift.status === currentStatusTab)
-                  .map((gift) => (
-                    <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
-                      {/* Displays dynamically generated ELLAMAE prefix string tags */}
-                      <td className="py-4 px-4 font-bold text-gray-900 tracking-wider">{gift.display_id}</td>
-                      <td className="py-2 px-4">
-                        {gift.images && gift.images.length > 0 ? (
-                          <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
-                            <img src={gift.images[0]} alt="" className="w-full h-full object-cover" />
+                  .map((gift) => {
+                    const primaryImage = (() => {
+                      if (Array.isArray(gift.images) && gift.images.length > 0 && gift.images[0]) return gift.images[0];
+                      if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {
+                        try {
+                          const parsed = JSON.parse(gift.images);
+                          if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+                        } catch (e) {}
+                      }
+                      if (typeof gift.images === 'string' && gift.images.length > 0) return gift.images;
+                      if (typeof gift.image === 'string' && gift.image.length > 0) return gift.image;
+                      if (typeof gift.image_path === 'string' && gift.image_path.length > 0) return gift.image_path;
+                      if (typeof gift.main_image === 'string' && gift.main_image.length > 0) return gift.main_image;
+                      return null;
+                    })();
+
+                    const stackCount = gift.stacks !== undefined && gift.stacks !== null 
+                      ? gift.stacks 
+                      : (gift.stack !== undefined && gift.stack !== null ? gift.stack : 0);
+
+                    return (
+                      <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
+                        {/* Displays dynamically generated ELLAMAE prefix string tags */}
+                        <td className="py-4 px-4 font-bold text-gray-900 tracking-wider">{gift.display_id || `ELLAMAE${gift.id}`}</td>
+                        <td className="py-2 px-4">
+                          {primaryImage ? (
+                            <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
+                              <img src={primaryImage} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
+                              <ImageIcon size={16} />
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
+                        <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
+                        <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
+                        <td className="py-4 px-4 font-bold text-gray-950">{stackCount}</td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
+                          }`}>
+                            {gift.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex justify-center space-x-3 text-black">
+                            <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
                           </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                            <ImageIcon size={16} />
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
-                      <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
-                      <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
-                      <td className="py-4 px-4 font-bold text-gray-950">{gift.stacks}</td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
-                          gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
-                        }`}>
-                          {gift.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex justify-center space-x-3 text-black">
-                          <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </table>

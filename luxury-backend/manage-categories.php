@@ -9,10 +9,114 @@ if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") {
     exit();
 }
 
-// Disable strict error throwing for mysqli (forces it to return false on error)
-mysqli_report(MYSQLI_REPORT_OFF);
+// Disable strict error throwing for mysqli if function exists
+if (function_exists('mysqli_report')) {
+    @mysqli_report(MYSQLI_REPORT_OFF);
+}
+
+// Universal Compatibility Layer: Supports both MySQLi and PDO environments seamlessly
+if (!class_exists('mysqli')) {
+    if (class_exists('PDO')) {
+        class mysqli {
+            public $connect_error = null;
+            public $insert_id = 0;
+            public $error = '';
+            private $pdo = null;
+
+            public function __construct($host, $user, $pass, $dbname) {
+                try {
+                    $this->pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                    ]);
+                } catch (Exception $e) {
+                    $this->connect_error = $e->getMessage();
+                }
+            }
+
+            public function query($sql) {
+                if (!$this->pdo) return false;
+                $res = $this->pdo->query($sql);
+                if ($res === false) {
+                    $err = $this->pdo->errorInfo();
+                    $this->error = $err[2] ?? 'Query Error';
+                    return false;
+                }
+                return new mysqli_compat_result($res->fetchAll());
+            }
+
+            public function prepare($sql) {
+                if (!$this->pdo) return false;
+                $stmt = $this->pdo->prepare($sql);
+                if (!$stmt) {
+                    $err = $this->pdo->errorInfo();
+                    $this->error = $err[2] ?? 'Prepare Error';
+                    return false;
+                }
+                return new mysqli_compat_stmt($this->pdo, $stmt, $this);
+            }
+
+            public function close() { return true; }
+        }
+
+        class mysqli_compat_result {
+            private $rows;
+            public $num_rows;
+            private $index = 0;
+            public function __construct($rows) {
+                $this->rows = is_array($rows) ? $rows : [];
+                $this->num_rows = count($this->rows);
+            }
+            public function fetch_assoc() {
+                if ($this->index < $this->num_rows) {
+                    return $this->rows[$this->index++];
+                }
+                return null;
+            }
+        }
+
+        class mysqli_compat_stmt {
+            private $pdo;
+            private $stmt;
+            private $conn;
+            private $params = [];
+            public $error = '';
+
+            public function __construct($pdo, $stmt, $conn) {
+                $this->pdo = $pdo;
+                $this->stmt = $stmt;
+                $this->conn = $conn;
+            }
+
+            public function bind_param($types, ...$args) {
+                $this->params = $args;
+            }
+
+            public function execute() {
+                $ok = $this->stmt->execute($this->params);
+                if ($ok) {
+                    $this->conn->insert_id = intval($this->pdo->lastInsertId());
+                } else {
+                    $err = $this->stmt->errorInfo();
+                    $this->error = $err[2] ?? 'Execute Error';
+                }
+                return $ok;
+            }
+
+            public function get_result() {
+                $rows = $this->stmt->fetchAll();
+                return new mysqli_compat_result($rows);
+            }
+
+            public function close() { return true; }
+        }
+    }
+}
 
 try {
+    if (!class_exists('mysqli')) {
+        throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment. Please install php-mysql or use XAMPP PHP.");
+    }
     /* ---------------- DATABASE CONNECTION ---------------- */
 
     $conn = new mysqli(
@@ -38,6 +142,8 @@ try {
     if (!$conn->query($createCategoryTable)) {
         throw new Exception("Table creation failed: " . $conn->error);
     }
+
+    $conn->query("ALTER TABLE category MODIFY COLUMN banner_image LONGTEXT");
 
     /* ---------------- GET ALL / SEARCH CATEGORIES ---------------- */
 

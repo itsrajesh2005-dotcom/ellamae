@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, Trash2, Layers, CheckCircle, Upload, Image as ImageIcon } from 'lucide-react';
-const API_URL = "/api/categories";
+const PHP_API_URL = "http://localhost/luxury-backend/manage-categories.php";
+const NEXT_API_URL = "/api/categories";
 
 export default function CategoriesManagement() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -27,15 +28,19 @@ export default function CategoriesManagement() {
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageString, setEditImageString] = useState('');
 
-
   // 1. READ & DYNAMIC SEARCH PIPELINE
   const fetchCategories = async (search = "") => {
     try {
-      let url = `${API_URL}?status=all`;
+      let url = `${NEXT_API_URL}?status=all`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
       }
-      const res = await fetch(url);
+      let res = await fetch(url).catch(() => null);
+      if (!res || !res.ok) {
+        let fallbackUrl = `${PHP_API_URL}?status=all`;
+        if (search) fallbackUrl += `&search=${encodeURIComponent(search)}`;
+        res = await fetch(fallbackUrl);
+      }
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -53,30 +58,54 @@ export default function CategoriesManagement() {
     setActiveSubStep('banner');
   };
 
-  // Converts uploaded binary asset signatures clean to standard base64 strings
-  const handleRealBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+            resolve(event.target?.result as string || '');
+          }
+        };
+        img.onerror = reject;
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleNewBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setNewImageString(reader.result);
-        }
-      };
-      reader.readAsDataURL(files[0]);
+      compressImage(files[0]).then(base64 => setNewImageString(base64));
     }
   };
 
   const handleEditBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setEditImageString(reader.result);
-        }
-      };
-      reader.readAsDataURL(files[0]);
+      compressImage(files[0]).then(base64 => setEditImageString(base64));
     }
   };
 
@@ -85,17 +114,26 @@ export default function CategoriesManagement() {
     if (!newName.trim()) return alert('Category Name is required');
     
     try {
-      const response = await fetch(API_URL, {
+      const postPayload = {
+        action: "CREATE",
+        name: newName,
+        description: newDescription,
+        status: newStatus,
+        banner_image: newImageString
+      };
+      let response = await fetch(NEXT_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "CREATE",
-          name: newName,
-          description: newDescription,
-          status: newStatus,
-          banner_image: newImageString
-        }),
-      });
+        body: JSON.stringify(postPayload),
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch(PHP_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postPayload),
+        });
+      }
 
       if (!response.ok) {
         const text = await response.text();
@@ -142,18 +180,27 @@ export default function CategoriesManagement() {
     if (!selectedCategory) return;
 
     try {
-      const response = await fetch(API_URL, {
+      const updatePayload = {
+        action: "UPDATE",
+        id: selectedCategory.id,
+        name: editName,
+        description: editDescription,
+        status: editStatus,
+        banner_image: editImageString
+      };
+      let response = await fetch(NEXT_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "UPDATE",
-          id: selectedCategory.id,
-          name: editName,
-          description: editDescription,
-          status: editStatus,
-          banner_image: editImageString
-        })
-      });
+        body: JSON.stringify(updatePayload)
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch(PHP_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload)
+        });
+      }
 
       if (!response.ok) {
         const text = await response.text();
@@ -178,14 +225,20 @@ export default function CategoriesManagement() {
     if (!confirm("Are you positive you want to completely discard this isolated category entry?")) return;
 
     try {
-      const response = await fetch(API_URL, {
+      const deletePayload = { action: "DELETE", id };
+      let response = await fetch(NEXT_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "DELETE",
-          id
-        })
-      });
+        body: JSON.stringify(deletePayload)
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch(PHP_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(deletePayload)
+        });
+      }
 
       if (!response.ok) {
         const text = await response.text();
@@ -370,7 +423,7 @@ export default function CategoriesManagement() {
                 {activeSubStep === 'banner' && (
                   <div className="text-black">
                     <label className="block cursor-pointer mb-6">
-                      <input type="file" accept="image/*" onChange={handleRealBannerUpload} className="hidden" />
+                      <input type="file" accept="image/*" onChange={handleNewBannerUpload} className="hidden" />
                       <div className="border-2 dashed border-black p-12 rounded-md flex flex-col items-center bg-gray-50 hover:bg-gray-100/70 transition-all">
                         <Upload size={36} className="text-black mb-3" />
                         <span className="font-bold text-sm">Choose Category Banner Image File</span>

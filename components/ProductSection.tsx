@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { products, CATEGORIES } from "@/data/products"
+import { useState, useMemo, useEffect } from "react"
+import { products as staticProducts, CATEGORIES as staticCategories, type Product } from "@/data/products"
 import { CategoryTabs } from "./CategoryTabs"
 import { ProductSearch } from "./ProductSearch"
 import { ProductSort, type SortOption } from "./ProductSort"
@@ -14,10 +14,96 @@ export function ProductSection() {
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<SortOption>("featured")
 
+  const [dbCategories, setDbCategories] = useState<any[]>([])
+  const [dbGifts, setDbGifts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadBackendData() {
+      try {
+        let catRes = await fetch("/api/categories?status=Active").catch(() => null);
+        if (!catRes || !catRes.ok) {
+          catRes = await fetch("http://localhost/luxury-backend/manage-categories.php?status=Active").catch(() => null);
+        }
+        if (catRes && catRes.ok) {
+          const catData = await catRes.json();
+          if (Array.isArray(catData) && catData.length > 0) {
+            setDbCategories(catData);
+          }
+        }
+
+        let giftsRes = await fetch("/api/gifts?status=Active").catch(() => null);
+        if (!giftsRes || !giftsRes.ok) {
+          giftsRes = await fetch("http://localhost/luxury-backend/manage-gifts.php?status=Active").catch(() => null);
+        }
+        if (giftsRes && giftsRes.ok) {
+          const giftsData = await giftsRes.json();
+          if (Array.isArray(giftsData) && giftsData.length > 0) {
+            // Map db categories by ID for quick lookup
+            let catMap: Record<number, string> = {};
+            if (catRes && catRes.ok) {
+              const catData = await catRes.clone().json().catch(() => []);
+              if (Array.isArray(catData)) {
+                catData.forEach((c: any) => { catMap[c.id] = c.name; });
+              }
+            }
+
+            const formattedGifts: Product[] = giftsData.map((g: any) => {
+              const primaryImg = (() => {
+                if (Array.isArray(g.images) && g.images.length > 0 && g.images[0]) return g.images[0];
+                if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
+                  try { const p = JSON.parse(g.images); if (Array.isArray(p) && p[0]) return p[0]; } catch (e) {}
+                }
+                if (typeof g.images === 'string' && g.images.length > 0) return g.images;
+                if (typeof g.image === 'string' && g.image.length > 0) return g.image;
+                if (typeof g.image_path === 'string' && g.image_path.length > 0) return g.image_path;
+                return "";
+              })();
+
+              const gallery = Array.isArray(g.images) ? g.images.filter(Boolean) : [primaryImg];
+
+              return {
+                id: g.id,
+                name: g.title,
+                category: catMap[g.category_id] || "Gifts",
+                price: parseFloat(g.price || "0"),
+                description: g.description || "",
+                image: primaryImg,
+                galleryImages: gallery,
+                status: g.status,
+              };
+            });
+            setDbGifts(formattedGifts);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading backend data for ProductSection:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadBackendData();
+  }, []);
+
+  const categories = useMemo(() => {
+    if (dbCategories.length > 0) {
+      return ["All", ...dbCategories.map((c) => c.name)];
+    }
+    return staticCategories;
+  }, [dbCategories]);
+
+  const allProducts = useMemo(() => {
+    if (dbGifts.length > 0) {
+      return dbGifts;
+    }
+    return staticProducts;
+  }, [dbGifts]);
+
   // Filter and Sort Products
   const processedProducts = useMemo(() => {
     // 1. Filter by category
-    let result = products.filter((p) => p.status !== 'Inactive')
+    let result = allProducts.filter((p) => p.status !== 'Inactive')
     if (selectedCategory !== "All") {
       result = result.filter((p) => p.category === selectedCategory)
     }
@@ -41,10 +127,9 @@ export function ProductSection() {
     } else if (sortBy === "latest") {
       sorted.sort((a, b) => b.id - a.id)
     }
-    // "featured" retains the original array order
 
     return sorted
-  }, [selectedCategory, searchQuery, sortBy])
+  }, [allProducts, selectedCategory, searchQuery, sortBy])
 
   return (
     <section id="signature-collection" className="relative  px-6 py-24 lg:px-10 overflow-hidden">
@@ -76,7 +161,7 @@ export function ProductSection() {
           <div className="flex items-center justify-between sm:justify-end gap-4">
             {/* Product Counter */}
             <span className="text-xs tracking-wider text-muted-foreground/80 font-medium">
-              Showing {processedProducts.length} of {products.length} products
+              Showing {processedProducts.length} of {allProducts.length} products
             </span>
             <ProductSort value={sortBy} onChange={setSortBy} />
           </div>
@@ -87,7 +172,7 @@ export function ProductSection() {
       <Reveal delay={0.2}>
         <div className="mt-8">
           <CategoryTabs
-            categories={CATEGORIES}
+            categories={categories}
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
           />

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const searchId = search.replace(/^ELLAMAE/i, '');
     
     let query = `
-      SELECT g.*, gi.image_path 
+      SELECT g.id, g.category_id, g.title, g.price, g.stacks, g.description, g.status, g.image_path AS main_image, gi.image_path AS rel_image 
       FROM gifts g 
       LEFT JOIN gift_images gi ON g.id = gi.gift_id
     `;
@@ -60,9 +60,12 @@ export async function GET(request: NextRequest) {
           display_id: `ELLAMAE${row.id}`,
           images: []
         };
+        if (row.main_image) {
+          giftsMap[giftId].images.push(row.main_image);
+        }
       }
-      if (row.image_path) {
-        giftsMap[giftId].images.push(row.image_path);
+      if (row.rel_image && !giftsMap[giftId].images.includes(row.rel_image)) {
+        giftsMap[giftId].images.push(row.rel_image);
       }
     }
     
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
       const description = body.description || '';
       const status = body.status || 'Active';
       const images = body.images || []; // Array of Base64 strings
+      const primaryImg = Array.isArray(images) && images.length > 0 ? images[0] : '';
       
       if (!title || category_id <= 0) {
         return NextResponse.json(
@@ -101,8 +105,8 @@ export async function POST(request: NextRequest) {
       }
       
       const [result]: any = await db.query(
-        'INSERT INTO gifts (category_id, title, price, stacks, description, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [category_id, title, price, stacks, description, status]
+        'INSERT INTO gifts (category_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [category_id, title, price, stacks, description, status, primaryImg]
       );
       
       const gift_id = result.insertId;
@@ -128,14 +132,21 @@ export async function POST(request: NextRequest) {
     
     if (action === 'UPDATE') {
       const id = parseInt(body.id || '0', 10);
-      const category_id = parseInt(body.category_id || '0', 10);
+      let category_id = parseInt(body.category_id || '0', 10);
       const title = body.title || '';
       const price = parseFloat(body.price || '0');
       const stacks = parseInt(body.stacks || '0', 10);
       const description = body.description || '';
       const status = body.status || 'Active';
-      const images = body.images || []; // Array of Base64 strings
+      const images = Array.isArray(body.images) ? body.images : [];
       
+      if (category_id <= 0 && id > 0) {
+        const [existing]: any = await db.query('SELECT category_id FROM gifts WHERE id = ?', [id]);
+        if (existing && existing.length > 0) {
+          category_id = existing[0].category_id;
+        }
+      }
+
       if (id <= 0 || !title || category_id <= 0) {
         return NextResponse.json(
           { status: 'error', message: 'Missing required update properties' },
@@ -143,16 +154,19 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      await db.query(
-        'UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?',
-        [category_id, title, price, stacks, description, status, id]
-      );
-      
-      // Delete old images
-      await db.query('DELETE FROM gift_images WHERE gift_id = ?', [id]);
-      
-      // Insert new images
-      if (Array.isArray(images) && images.length > 0) {
+      const hasNewImages = images.length > 0;
+
+      if (hasNewImages) {
+        const primaryImg = images[0];
+        await db.query(
+          'UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?',
+          [category_id, title, price, stacks, description, status, primaryImg, id]
+        );
+        
+        // Delete old images
+        await db.query('DELETE FROM gift_images WHERE gift_id = ?', [id]);
+        
+        // Insert new images
         for (const img of images) {
           if (img) {
             await db.query(
@@ -161,6 +175,11 @@ export async function POST(request: NextRequest) {
             );
           }
         }
+      } else {
+        await db.query(
+          'UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?',
+          [category_id, title, price, stacks, description, status, id]
+        );
       }
       
       return NextResponse.json({

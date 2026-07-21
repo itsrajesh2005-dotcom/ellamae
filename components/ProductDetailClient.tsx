@@ -39,7 +39,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
   const galleryImages = useMemo(() => getProductGalleryImages(product), [product])
   const activeImage = galleryImages[activeView] ?? product.image
-  const collectionSlug = CATEGORY_SLUG[product.category] ?? "birthday-gifts"
+  const collectionSlug = CATEGORY_SLUG[product.category] ?? (product.category ? product.category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "birthday-gifts")
 
   useEffect(() => {
     setActiveView(0)

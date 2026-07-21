@@ -9,10 +9,114 @@ if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") {
     exit();
 }
 
-// Disable strict error throwing for mysqli (forces it to return false on error)
-mysqli_report(MYSQLI_REPORT_OFF);
+// Disable strict error throwing for mysqli if function exists
+if (function_exists('mysqli_report')) {
+    @mysqli_report(MYSQLI_REPORT_OFF);
+}
+
+// Universal Compatibility Layer: Supports both MySQLi and PDO environments seamlessly
+if (!class_exists('mysqli')) {
+    if (class_exists('PDO')) {
+        class mysqli {
+            public $connect_error = null;
+            public $insert_id = 0;
+            public $error = '';
+            private $pdo = null;
+
+            public function __construct($host, $user, $pass, $dbname) {
+                try {
+                    $this->pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                    ]);
+                } catch (Exception $e) {
+                    $this->connect_error = $e->getMessage();
+                }
+            }
+
+            public function query($sql) {
+                if (!$this->pdo) return false;
+                $res = $this->pdo->query($sql);
+                if ($res === false) {
+                    $err = $this->pdo->errorInfo();
+                    $this->error = $err[2] ?? 'Query Error';
+                    return false;
+                }
+                return new mysqli_compat_result($res->fetchAll());
+            }
+
+            public function prepare($sql) {
+                if (!$this->pdo) return false;
+                $stmt = $this->pdo->prepare($sql);
+                if (!$stmt) {
+                    $err = $this->pdo->errorInfo();
+                    $this->error = $err[2] ?? 'Prepare Error';
+                    return false;
+                }
+                return new mysqli_compat_stmt($this->pdo, $stmt, $this);
+            }
+
+            public function close() { return true; }
+        }
+
+        class mysqli_compat_result {
+            private $rows;
+            public $num_rows;
+            private $index = 0;
+            public function __construct($rows) {
+                $this->rows = is_array($rows) ? $rows : [];
+                $this->num_rows = count($this->rows);
+            }
+            public function fetch_assoc() {
+                if ($this->index < $this->num_rows) {
+                    return $this->rows[$this->index++];
+                }
+                return null;
+            }
+        }
+
+        class mysqli_compat_stmt {
+            private $pdo;
+            private $stmt;
+            private $conn;
+            private $params = [];
+            public $error = '';
+
+            public function __construct($pdo, $stmt, $conn) {
+                $this->pdo = $pdo;
+                $this->stmt = $stmt;
+                $this->conn = $conn;
+            }
+
+            public function bind_param($types, ...$args) {
+                $this->params = $args;
+            }
+
+            public function execute() {
+                $ok = $this->stmt->execute($this->params);
+                if ($ok) {
+                    $this->conn->insert_id = intval($this->pdo->lastInsertId());
+                } else {
+                    $err = $this->stmt->errorInfo();
+                    $this->error = $err[2] ?? 'Execute Error';
+                }
+                return $ok;
+            }
+
+            public function get_result() {
+                $rows = $this->stmt->fetchAll();
+                return new mysqli_compat_result($rows);
+            }
+
+            public function close() { return true; }
+        }
+    }
+}
 
 try {
+    if (!class_exists('mysqli')) {
+        throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment. Please install php-mysql or use XAMPP PHP.");
+    }
     /*---------DATABASE CONNECTION---------*/
     $conn = new mysqli("localhost", "root", "", "ellamae_db");
 
@@ -36,7 +140,19 @@ try {
         throw new Exception("Gifts table creation failed: " . $conn->error);
     }
 
-    $conn->query("ALTER TABLE gifts ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price");
+    $checkCol = $conn->query("SHOW COLUMNS FROM gifts LIKE 'stacks'");
+    if ($checkCol && $checkCol->num_rows == 0) {
+        $conn->query("ALTER TABLE gifts ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price");
+    } else {
+        $conn->query("ALTER TABLE gifts MODIFY COLUMN stacks INT NOT NULL DEFAULT 0");
+    }
+
+    $checkImgCol = $conn->query("SHOW COLUMNS FROM gifts LIKE 'image_path'");
+    if ($checkImgCol && $checkImgCol->num_rows == 0) {
+        $conn->query("ALTER TABLE gifts ADD COLUMN image_path LONGTEXT AFTER status");
+    } else {
+        $conn->query("ALTER TABLE gifts MODIFY COLUMN image_path LONGTEXT");
+    }
 
     // 2. Create the separate gift_images table for decoupled image storage
     $createGiftImagesTable = "CREATE TABLE IF NOT EXISTS gift_images (
@@ -49,6 +165,9 @@ try {
     if (!$conn->query($createGiftImagesTable)) {
         throw new Exception("Gift images table creation failed: " . $conn->error);
     }
+
+    // Ensure gift_images.image_path is LONGTEXT (4GB capacity) in existing tables
+    $conn->query("ALTER TABLE gift_images MODIFY COLUMN image_path LONGTEXT NOT NULL");
 
 
     /* ---------------- GET / SEARCH GIFTS ---------------- */
@@ -85,11 +204,11 @@ try {
             $where[] = "(g.title LIKE ? OR g.description LIKE ? OR g.id = ?)";
             $params[] = "%" . $search . "%";
             $params[] = "%" . $search . "%";
-            $params[] = $searchId;
-            $types .= "sss";
+            $params[] = is_numeric($searchId) ? intval($searchId) : -1;
+            $types .= "ssi";
         }
 
-        $sql = "SELECT g.*, gi.image_path 
+        $sql = "SELECT g.id, g.category_id, g.title, g.price, g.stacks, g.description, g.status, g.image_path AS main_image, gi.image_path AS rel_image_path 
                 FROM gifts g 
                 LEFT JOIN gift_images gi ON g.id = gi.gift_id";
 
@@ -111,19 +230,22 @@ try {
                 $gift_id = $row['id'];
                 if (!isset($gifts[$gift_id])) {
                     $gifts[$gift_id] = [
-                        "id" => $row['id'],
-                        "category_id" => $row['category_id'],
+                        "id" => intval($row['id']),
+                        "category_id" => intval($row['category_id']),
                         "title" => $row['title'],
-                        "price" => $row['price'],
+                        "price" => floatval($row['price']),
                         "stacks" => intval($row['stacks'] ?? 0),
                         "description" => $row['description'],
                         "status" => $row['status'],
                         "display_id" => "ELLAMAE" . $row['id'],
                         "images" => []
                     ];
+                    if (!empty($row['main_image'])) {
+                        $gifts[$gift_id]['images'][] = $row['main_image'];
+                    }
                 }
-                if (!empty($row['image_path'])) {
-                    $gifts[$gift_id]['images'][] = $row['image_path'];
+                if (!empty($row['rel_image_path']) && !in_array($row['rel_image_path'], $gifts[$gift_id]['images'])) {
+                    $gifts[$gift_id]['images'][] = $row['rel_image_path'];
                 }
             }
 
@@ -149,6 +271,7 @@ try {
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
         $images = $input['images'] ?? []; // Array of images in base64
+        $primaryImg = (is_array($images) && count($images) > 0) ? $images[0] : '';
 
         if (empty($title) || $category_id <= 0) {
             echo json_encode(["status" => "error", "message" => "Title and Category are required"]);
@@ -156,9 +279,9 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO gifts (category_id, title, price, stacks, description, status) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO gifts (category_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("isdiss", $category_id, $title, $price, $stacks, $description, $status);
+            $stmt->bind_param("isdisss", $category_id, $title, $price, $stacks, $description, $status, $primaryImg);
 
             if ($stmt->execute()) {
                 $gift_id = $conn->insert_id;
@@ -168,9 +291,11 @@ try {
                 if (is_array($images) && count($images) > 0) {
                     $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
                     if ($stmt2) {
+                        $imgVal = "";
+                        $stmt2->bind_param("is", $gift_id, $imgVal);
                         foreach ($images as $img) {
                             if (!empty($img)) {
-                                $stmt2->bind_param("is", $gift_id, $img);
+                                $imgVal = $img;
                                 $stmt2->execute();
                             }
                         }
@@ -199,7 +324,15 @@ try {
         $stacks = intval($input['stacks'] ?? 0);
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
-        $images = $input['images'] ?? []; // Array of images in base64
+        $images = isset($input['images']) && is_array($input['images']) ? $input['images'] : [];
+
+        // Fallback: If category_id is missing or 0, resolve from existing database record
+        if ($category_id <= 0 && $id > 0) {
+            $catQuery = $conn->query("SELECT category_id FROM gifts WHERE id = $id");
+            if ($catQuery && $rowCat = $catQuery->fetch_assoc()) {
+                $category_id = intval($rowCat['category_id']);
+            }
+        }
 
         if ($id <= 0 || empty($title) || $category_id <= 0) {
             echo json_encode(["status" => "error", "message" => "Missing required update properties"]);
@@ -207,43 +340,53 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
-        if ($stmt) {
-            $stmt->bind_param("isdissi", $category_id, $title, $price, $stacks, $description, $status, $id);
+        $hasNewImages = count($images) > 0;
 
-            if ($stmt->execute()) {
+        if ($hasNewImages) {
+            $primaryImg = $images[0];
+            $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
+            if ($stmt) {
+                $stmt->bind_param("isdisssi", $category_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
+                $stmt->execute();
                 $stmt->close();
+            } else {
+                throw new Exception("Failed to prepare update query with images: " . $conn->error);
+            }
 
-                // Delete all old image records for this gift
-                $stmtDel = $conn->prepare("DELETE FROM gift_images WHERE gift_id = ?");
-                if ($stmtDel) {
-                    $stmtDel->bind_param("i", $id);
-                    $stmtDel->execute();
-                    $stmtDel->close();
-                }
+            // Delete old image records for this gift
+            $stmtDel = $conn->prepare("DELETE FROM gift_images WHERE gift_id = ?");
+            if ($stmtDel) {
+                $stmtDel->bind_param("i", $id);
+                $stmtDel->execute();
+                $stmtDel->close();
+            }
 
-                // Insert updated images array into relational table
-                if (is_array($images) && count($images) > 0) {
-                    $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
-                    if ($stmt2) {
-                        foreach ($images as $img) {
-                            if (!empty($img)) {
-                                $stmt2->bind_param("is", $id, $img);
-                                $stmt2->execute();
-                            }
-                        }
-                        $stmt2->close();
+            // Insert updated images array into relational table
+            $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
+            if ($stmt2) {
+                $imgVal = "";
+                $stmt2->bind_param("is", $id, $imgVal);
+                foreach ($images as $img) {
+                    if (!empty($img)) {
+                        $imgVal = $img;
+                        $stmt2->execute();
                     }
                 }
-
-                echo json_encode(["status" => "success", "message" => "Gift Updated Successfully"]);
-            } else {
-                echo json_encode(["status" => "error", "message" => "Error updating gift: " . $stmt->error]);
-                $stmt->close();
+                $stmt2->close();
             }
         } else {
-            throw new Exception("Failed to prepare update query: " . $conn->error);
+            // Update fields without wiping out existing images
+            $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
+            if ($stmt) {
+                $stmt->bind_param("isdissi", $category_id, $title, $price, $stacks, $description, $status, $id);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                throw new Exception("Failed to prepare update query: " . $conn->error);
+            }
         }
+
+        echo json_encode(["status" => "success", "message" => "Gift Updated Successfully"]);
         $conn->close();
         exit();
     }
