@@ -1,41 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDbConnection, initializeDatabase } from '../../../lib/db';
+
+const PHP_ENDPOINTS = [
+  process.env.PHP_CATEGORIES_API,
+  'http://localhost/luxury-backend/manage-categories.php',
+].filter(Boolean) as string[];
+
+async function fetchFromPhp(queryString: string, options?: RequestInit) {
+  let lastError: any = null;
+
+  for (const endpoint of PHP_ENDPOINTS) {
+    try {
+      const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+      const res = await fetch(url, {
+        ...options,
+        cache: 'no-store',
+      });
+
+      if (res.ok) {
+        return res;
+      }
+      lastError = new Error(`PHP endpoint ${url} responded with status ${res.status}`);
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Failed to connect to PHP categories backend');
+}
 
 export async function GET(request: NextRequest) {
   try {
-    await initializeDatabase();
-    const db = await getDbConnection();
-    
-    const searchParams = request.nextUrl.searchParams;
-    const search = searchParams.get('search')?.trim() || '';
-    const status = searchParams.get('status') || 'Active';
-    
-    let query = 'SELECT * FROM category';
-    let params: any[] = [];
-    let whereClauses: string[] = [];
-    
-    if (status !== 'all') {
-      whereClauses.push('status = ?');
-      params.push(status);
-    }
-    
-    if (search) {
-      whereClauses.push('(name LIKE ? OR description LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
-    }
-    
-    if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
-    }
-    
-    query += ' ORDER BY id ASC';
-    
-    const [rows] = await db.query(query, params);
-    return NextResponse.json(rows);
+    const searchParams = request.nextUrl.searchParams.toString();
+    const res = await fetchFromPhp(searchParams, { method: 'GET' });
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in GET /api/categories:', error);
+    console.error('Error in GET /api/categories (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Server exception occurred' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP categories backend' },
       { status: 500 }
     );
   }
@@ -43,93 +45,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await initializeDatabase();
-    const db = await getDbConnection();
-    
     const body = await request.json();
-    const action = body.action || '';
-    
-    if (action === 'CREATE') {
-      const name = body.name || '';
-      const description = body.description || '';
-      const status = body.status || 'Active';
-      const banner_image = body.banner_image || '';
-      
-      if (!name) {
-        return NextResponse.json(
-          { status: 'error', message: 'Category Name is required' },
-          { status: 400 }
-        );
-      }
-      
-      const [result]: any = await db.query(
-        'INSERT INTO category (name, description, status, banner_image) VALUES (?, ?, ?, ?)',
-        [name, description, status, banner_image]
-      );
-      
-      return NextResponse.json({
-        status: 'success',
-        message: 'Category Added Successfully',
-        id: result.insertId,
-        name,
-        description,
-        status_val: status,
-        banner_image
-      });
-    }
-    
-    if (action === 'UPDATE') {
-      const id = parseInt(body.id || '0', 10);
-      const name = body.name || '';
-      const description = body.description || '';
-      const status = body.status || 'Active';
-      const banner_image = body.banner_image || '';
-      
-      if (id <= 0 || !name) {
-        return NextResponse.json(
-          { status: 'error', message: 'Category ID and Name are required' },
-          { status: 400 }
-        );
-      }
-      
-      await db.query(
-        'UPDATE category SET name = ?, description = ?, status = ?, banner_image = ? WHERE id = ?',
-        [name, description, status, banner_image, id]
-      );
-      
-      return NextResponse.json({
-        status: 'success',
-        message: 'Category Updated Successfully'
-      });
-    }
-    
-    if (action === 'DELETE') {
-      const id = parseInt(body.id || '0', 10);
-      
-      if (id <= 0) {
-        return NextResponse.json(
-          { status: 'error', message: 'Invalid Category ID for deletion' },
-          { status: 400 }
-        );
-      }
-      
-      await db.query('DELETE FROM category WHERE id = ?', [id]);
-      
-      return NextResponse.json({
-        status: 'success',
-        message: 'Category Deleted Successfully'
-      });
-    }
-    
-    return NextResponse.json(
-      { status: 'error', message: 'Invalid Action' },
-      { status: 400 }
-    );
+    const res = await fetchFromPhp('', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in POST /api/categories:', error);
+    console.error('Error in POST /api/categories (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Server exception occurred' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP categories backend' },
       { status: 500 }
     );
   }
 }
+
