@@ -91,7 +91,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
-      <Navbar variant="hero" />
+      <Navbar variant="light" />
       <main className="bg-white">
         <ProductDetailClient product={product} />
       </main>

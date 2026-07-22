@@ -248,6 +248,19 @@ function GridCard({ item }: { item: (typeof items)[number] }) {
 }
 
 /* ─── exported section ─────────────────────────────────────────────────────── */
+const layout = [
+  "md:col-span-8",
+  "md:col-span-4",
+  "md:col-span-4",
+  "md:col-span-4",
+  "md:col-span-4",
+  "md:col-span-4",
+  "md:col-span-8",
+  "md:col-span-6",
+  "md:col-span-6",
+  "md:col-span-12",
+]
+
 export function CategoriesMosaic() {
   const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,7 +297,7 @@ export function CategoriesMosaic() {
             </svg>
           ),
           image: cat.banner_image || (matchedStatic ? matchedStatic.image : "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?w=600&auto=format&fit=crop&q=80"),
-          col: idx % 3 === 0 ? "md:col-span-8" : "md:col-span-4",
+          col: layout[idx] || "md:col-span-4",
           height: "h-[300px]",
           large: idx % 3 === 0,
         };
