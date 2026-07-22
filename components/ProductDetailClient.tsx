@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Sparkles, X } from "lucide-react"
 import type { Product } from "@/data/products"
@@ -34,6 +35,7 @@ function WhatsAppIcon() {
 }
 
 export function ProductDetailClient({ product }: { product: Product }) {
+  const router = useRouter()
   const [activeView, setActiveView] = useState(0)
   const [isZoomOpen, setIsZoomOpen] = useState(false)
 
@@ -57,13 +59,14 @@ export function ProductDetailClient({ product }: { product: Product }) {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-              <Link
-                href={`/collections/${collectionSlug}`}
-                className="absolute left-30 top-25 z-20 inline-flex items-center gap-3 rounded-full border border-[#d4af37]/30 bg-[#fff8dc]/90 px-2 py-1 text-sm font-medium text-[#1f1f1f] transition hover:border-[#d4af37] hover:bg-[#fff8dc] shadow-sm"
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="absolute left-30 top-25 z-20 inline-flex items-center gap-3 rounded-full border border-[#d4af37]/30 bg-[#fff8dc]/90 px-2 py-1 text-sm font-medium text-[#1f1f1f] transition hover:border-[#d4af37] hover:bg-[#fff8dc] shadow-sm cursor-pointer"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to collection
-              </Link>
+              </button>
           <div className="rounded-[2rem] p-4 sm:p-6">
             <div className="relative overflow-hidden rounded-[1.5rem]">
 

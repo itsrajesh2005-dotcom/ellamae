@@ -63,34 +63,62 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     return scrolled ? "text-foreground" : "text-white"
   }
 
+  const getLogoColor = () => {
+    if (variant === "light") {
+      return "text-zinc-900 hover:text-[#d4af37]"
+    }
+    if (variant === "hero") {
+      return scrolled 
+        ? "text-zinc-900 hover:text-[#d4af37]" 
+        : "text-white/80 hover:text-white"
+    }
+    return scrolled 
+      ? "text-white hover:text-white/80" 
+      : "text-white/80 hover:text-white"
+  }
+
   const getLinkColor = () => {
     if (variant === "light") {
-      return "font-black text-[#d4af37] hover:text-[#b8860b]"
+      return "text-zinc-800 hover:text-[#d4af37]"
     }
     if (variant === "hero") {
-      return scrolled ? "font-black text-[#d4af37] hover:text-[#b8860b]" : "font-black text-[#f2d06b] hover:text-[#ffd977]"
+      return scrolled 
+        ? "text-zinc-800 hover:text-[#d4af37]" 
+        : "text-white/80 hover:text-white"
     }
-    return scrolled ? "font-black text-[#d4af37] hover:text-[#b8860b]" : "font-black text-[#f2d06b] hover:text-[#ffd977]"
+    return scrolled 
+      ? "text-white hover:text-white/80" 
+      : "text-white/80 hover:text-white"
   }
 
-  const getSocialIconColor = () => {
+  const getSocialIconClass = () => {
+    const base = "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300"
     if (variant === "light") {
-      return "text-zinc-700 hover:bg-gold hover:text-white"
+      return `${base} border-zinc-200 text-zinc-700 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
     }
     if (variant === "hero") {
-      return scrolled ? "text-zinc-700 hover:bg-gold hover:text-white" : "text-white/80 hover:bg-gold hover:text-white"
+      return scrolled
+        ? `${base} border-zinc-200 text-zinc-700 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+        : `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
     }
-    return scrolled ? "text-foreground/80 hover:bg-gold hover:text-white" : "text-white/80 hover:bg-gold hover:text-white"
+    return scrolled
+      ? `${base} border-white/15 text-foreground/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+      : `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
   }
 
-  const getMobileButtonColor = () => {
+  const getMobileButtonClass = () => {
+    const base = "inline-flex h-10 w-10 items-center justify-center rounded-full border md:hidden transition-all duration-300"
     if (variant === "light") {
-      return "text-zinc-900"
+      return `${base} border-zinc-200 text-zinc-900`
     }
     if (variant === "hero") {
-      return scrolled ? "text-zinc-900" : "text-white"
+      return scrolled 
+        ? `${base} border-zinc-200 text-zinc-900` 
+        : `${base} border-white/20 text-white`
     }
-    return scrolled ? "text-foreground" : "text-white"
+    return scrolled 
+      ? `${base} border-white/15 text-foreground` 
+      : `${base} border-white/20 text-white`
   }
 
   const getGlassStyle = () => {
@@ -130,8 +158,8 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
         <Link href="/" className="flex flex-col leading-none" data-cursor="pointer">
-          <span className="inline-flex px-4 py-2 transition-all">
-            <span className="font-serif text-3xl font-black tracking-[0.35em] text-[#d4af37]">ELLAMAE</span>
+          <span className={`font-serif text-2xl font-semibold tracking-[0.35em] transition-colors ${getLogoColor()}`}>
+            ELLAMAE
           </span>
         </Link>
 
@@ -142,7 +170,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               href={l.href}
               onClick={(e) => handleLinkClick(e, l.href)}
               data-cursor="pointer"
-              className={`group relative px-3 py-2 text-base tracking-wide transition-all ${getLinkColor()}`}
+              className={`group relative px-3 py-2 text-sm tracking-wide transition-all ${getLinkColor()}`}
             >
               {l.label}
               <span className="absolute -bottom-1 left-0 h-px w-0 bg-gold transition-all duration-300 group-hover:w-full" />
@@ -152,19 +180,19 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-3">
-            <a href="https://instagram.com/ellamae_gifts_" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Instagram" className={`flex h-10 w-10 items-center justify-center transition-colors ${getSocialIconColor()}`}>
+            <a href="https://instagram.com/ellamae_gifts_" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Instagram" className={getSocialIconClass()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
             </a>
-            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Facebook" className={`flex h-10 w-10 items-center justify-center transition-colors ${getSocialIconColor()}`}>
+            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Facebook" className={getSocialIconClass()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
             </a>
-            <a href="https://www.youtube.com/@ellamae-az" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="YouTube" className={`flex h-10 w-10 items-center justify-center transition-colors ${getSocialIconColor()}`}>
+            <a href="https://www.youtube.com/@ellamae-az" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="YouTube" className={getSocialIconClass()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z" /><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" /></svg>
             </a>
-            <a href="mailto:ellamae.azstore@gmail.com" data-cursor="pointer" aria-label="Email" className={`flex h-10 w-10 items-center justify-center transition-colors ${getSocialIconColor()}`}>
+            <a href="mailto:ellamae.azstore@gmail.com" data-cursor="pointer" aria-label="Email" className={getSocialIconClass()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
             </a>
-            <a href="https://wa.me/919790666769" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="WhatsApp" className={`flex h-10 w-10 items-center justify-center transition-colors ${getSocialIconColor()}`}>
+            <a href="https://wa.me/919790666769" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="WhatsApp" className={getSocialIconClass()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
             </a>
           </div>
@@ -172,7 +200,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             data-cursor="pointer"
             aria-label="Toggle menu"
             onClick={() => setOpen((v) => !v)}
-            className={`inline-flex h-10 w-10 items-center justify-center md:hidden transition-colors ${getMobileButtonColor()}`}
+            className={getMobileButtonClass()}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
