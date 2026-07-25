@@ -33,19 +33,13 @@ export default async function ProductPage({ params }: Props) {
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 2000)
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-    let res = await fetch(
-      `http://localhost:3000/api/gifts?status=all&search=${encodeURIComponent(id)}`,
+    const res = await fetch(
+      `/api/gifts-db?status=all&search=${encodeURIComponent(id)}`,
       { cache: "no-store", signal: controller.signal }
-    ).catch(() => null)
+    )
     
-    if (!res || !res.ok) {
-      res = await fetch(
-        `http://localhost/luxury-backend/manage-gifts.php?status=all&search=${encodeURIComponent(id)}`,
-        { cache: "no-store", signal: controller.signal }
-      ).catch(() => null)
-    }
     clearTimeout(timeoutId)
 
     if (res && res.ok) {

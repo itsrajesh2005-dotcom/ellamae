@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer"
 import { CollectionPageClient } from "@/components/CollectionPageClient"
 import { getCategoryBySlug } from "@/data/categories"
 import { products, SLUG_CATEGORY } from "@/data/products"
+import { getDbConnection, initializeDatabase } from "@/lib/db"
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -44,95 +45,95 @@ export function generateStaticParams() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default async function CollectionPage({ params }: Props) {
   const { slug } = await params
-  let category: any = getCategoryBySlug(slug)
+  const category = getCategoryBySlug(slug)
+  if (!category) notFound()
 
+  // Resolve products for this category.
+  // "festive-gift-hampers" shows products from both "Gift Hampers" and "Festive Gift Hampers".
+  // "utility-products" has no products → shows empty state.
   let categoryName = SLUG_CATEGORY[slug] ?? null
+
   let categoryProducts: any[] = []
   let isDbDataUsed = false
 
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 2000)
+    await initializeDatabase()
+    const db = await getDbConnection()
 
-    let catRes = await fetch("http://localhost:3000/api/categories?status=Active", { cache: "no-store", signal: controller.signal }).catch(() => null);
-    if (!catRes || !catRes.ok) {
-      catRes = await fetch("http://localhost/luxury-backend/manage-categories.php?status=Active", { cache: "no-store", signal: controller.signal }).catch(() => null);
-    }
-    clearTimeout(timeoutId)
+    // Fetch active category info from database
+    const [catRows]: any = await db.query(
+      "SELECT * FROM category WHERE status = 'Active' AND name = ?",
+      [categoryName]
+    )
 
-    if (catRes && catRes.ok) {
-      const catRows = await catRes.json()
+    if (catRows.length > 0) {
+      const dbCat = catRows[0]
+      
+      // Override details if customized in database
+      if (dbCat.description) {
+        category.description = dbCat.description
+      }
+      if (dbCat.banner_image) {
+        category.banner = dbCat.banner_image
+      }
 
-      if (Array.isArray(catRows)) {
-        // Match category by slug or name
-        const dbCat = catRows.find((c: any) => {
-          const catSlug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-          return catSlug === slug || c.name === categoryName || c.name.toLowerCase() === slug.replace(/-/g, " ");
-        });
+      // Query active gifts associated with this category
+      let giftQuery = `
+        SELECT g.*, gi.image_path 
+        FROM gifts g 
+        LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+        WHERE g.status = 'Active' AND g.category_id = ?
+        ORDER BY g.id DESC, gi.id ASC
+      `;
+      let giftParams = [dbCat.id];
 
-        if (dbCat) {
-          categoryName = dbCat.name;
-          if (!category) {
-            category = {
-              slug: slug,
-              name: dbCat.name,
-              subtitle: "Curated luxury gift selection",
-              banner: dbCat.banner_image || "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?w=1600&auto=format&fit=crop&q=80",
-              description: dbCat.description || "Thoughtfully curated luxury gifts.",
-              accent: "from-rose-900/60 to-card/0",
-            };
-          } else {
-            if (dbCat.description) category.description = dbCat.description
-            if (dbCat.banner_image) category.banner = dbCat.banner_image
+      if (slug === "festive-gift-hampers") {
+        const [hampersCat]: any = await db.query(
+          "SELECT id FROM category WHERE name = 'Gift Hampers' AND status = 'Active'"
+        )
+        if (hampersCat.length > 0) {
+          giftQuery = `
+            SELECT g.*, gi.image_path 
+            FROM gifts g 
+            LEFT JOIN gift_images gi ON g.id = gi.gift_id 
+            WHERE g.status = 'Active' AND (g.category_id = ? OR g.category_id = ?)
+            ORDER BY g.id DESC, gi.id ASC
+          `;
+          giftParams = [dbCat.id, hampersCat[0].id];
+        }
+      }
+
+      const [giftRows]: any = await db.query(giftQuery, giftParams)
+
+      const giftsMap: Record<number, any> = {}
+      for (const row of giftRows) {
+        const giftId = row.id
+        if (!giftsMap[giftId]) {
+          giftsMap[giftId] = {
+            id: row.id.toString(),
+            name: row.title,
+            price: parseFloat(row.price || "0"),
+            stacks: parseInt(row.stacks || "0", 10),
+            description: row.description,
+            image: "",
+            images: [],
+            category: categoryName,
+            status: row.status
           }
-
-          const giftController = new AbortController()
-          const giftTimeoutId = setTimeout(() => giftController.abort(), 2000)
-
-          let giftsRes = await fetch(`http://localhost:3000/api/gifts?status=Active&category_id=${dbCat.id}`, { cache: "no-store", signal: giftController.signal }).catch(() => null);
-          if (!giftsRes || !giftsRes.ok) {
-            giftsRes = await fetch(`http://localhost/luxury-backend/manage-gifts.php?status=Active&category_id=${dbCat.id}`, { cache: "no-store", signal: giftController.signal }).catch(() => null);
-          }
-          clearTimeout(giftTimeoutId)
-
-          if (giftsRes && giftsRes.ok) {
-            const fetchedGifts = await giftsRes.json()
-            let allGifts = Array.isArray(fetchedGifts) ? fetchedGifts : []
-
-            categoryProducts = allGifts.map((g: any) => {
-              const primaryImg = (() => {
-                if (Array.isArray(g.images) && g.images.length > 0 && g.images[0]) return g.images[0];
-                if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
-                  try { const p = JSON.parse(g.images); if (Array.isArray(p) && p[0]) return p[0]; } catch (e) {}
-                }
-                if (typeof g.images === 'string' && g.images.length > 0) return g.images;
-                if (typeof g.image === 'string' && g.image.length > 0) return g.image;
-                if (typeof g.image_path === 'string' && g.image_path.length > 0) return g.image_path;
-                return "";
-              })();
-
-              return {
-                id: g.id.toString(),
-                name: g.title,
-                price: parseFloat(g.price || "0"),
-                stacks: parseInt(g.stacks || "0", 10),
-                description: g.description,
-                image: primaryImg,
-                images: g.images || (primaryImg ? [primaryImg] : []),
-                category: categoryName,
-                status: g.status,
-              };
-            });
-            isDbDataUsed = true
+        }
+        if (row.image_path) {
+          giftsMap[giftId].images.push(row.image_path)
+          if (!giftsMap[giftId].image) {
+            giftsMap[giftId].image = row.image_path
           }
         }
       }
+      categoryProducts = Object.values(giftsMap)
+      isDbDataUsed = true
     }
   } catch (err) {
-    console.error("Backend query failed in CollectionPage:", err)
+    console.error("Database query failed in CollectionPage, falling back to static files:", err)
   }
-
-  if (!category) notFound()
 
   // Static fallback if DB lacks this category or contains no products
   if (!isDbDataUsed || categoryProducts.length === 0) {

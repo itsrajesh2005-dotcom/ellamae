@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PHP_ENDPOINTS = [
   process.env.PHP_GIFTS_API,
-  'http://localhost/luxury-backend/manage-gifts.php',
+  'http://192.168.1.79/luxury-backend/manage-gifts.php',
 ].filter(Boolean) as string[];
 
 async function fetchFromPhp(queryString: string, options?: RequestInit) {

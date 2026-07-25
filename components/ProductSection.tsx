@@ -21,27 +21,21 @@ export function ProductSection() {
   useEffect(() => {
     async function loadBackendData() {
       try {
-        let catRes = await fetch("/api/categories?status=Active").catch(() => null);
-        if (!catRes || !catRes.ok) {
-          catRes = await fetch("http://localhost/luxury-backend/manage-categories.php?status=Active").catch(() => null);
-        }
-        if (catRes && catRes.ok) {
+        const catRes = await fetch("/api/categories-db?status=Active");
+        if (catRes.ok) {
           const catData = await catRes.json();
           if (Array.isArray(catData) && catData.length > 0) {
             setDbCategories(catData);
           }
         }
 
-        let giftsRes = await fetch("/api/gifts?status=Active").catch(() => null);
-        if (!giftsRes || !giftsRes.ok) {
-          giftsRes = await fetch("http://localhost/luxury-backend/manage-gifts.php?status=Active").catch(() => null);
-        }
-        if (giftsRes && giftsRes.ok) {
+        const giftsRes = await fetch("/api/gifts-db?status=Active");
+        if (giftsRes.ok) {
           const giftsData = await giftsRes.json();
           if (Array.isArray(giftsData) && giftsData.length > 0) {
             // Map db categories by ID for quick lookup
             let catMap: Record<number, string> = {};
-            if (catRes && catRes.ok) {
+            if (catRes.ok) {
               const catData = await catRes.clone().json().catch(() => []);
               if (Array.isArray(catData)) {
                 catData.forEach((c: any) => { catMap[c.id] = c.name; });

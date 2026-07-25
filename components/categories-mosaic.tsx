@@ -266,11 +266,7 @@ export function CategoriesMosaic() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/categories?status=Active")
-      .then((res) => {
-        if (!res.ok) return fetch("http://localhost/luxury-backend/manage-categories.php?status=Active");
-        return res;
-      })
+    fetch("/api/categories-db?status=Active")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {

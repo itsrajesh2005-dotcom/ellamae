@@ -21,11 +21,7 @@ export function FeaturedCollections() {
   const [dbCategories, setDbCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/categories?status=Active")
-      .then((res) => {
-        if (!res.ok) return fetch("http://localhost/luxury-backend/manage-categories.php?status=Active");
-        return res;
-      })
+    fetch("/api/categories-db?status=Active")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -67,7 +63,7 @@ export function FeaturedCollections() {
 
         <div className="mt-16 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {collections.map((item, i) => (
-            <Reveal key={item.name} delay={i * 0.05}>
+            <Reveal key={`${item.slug || item.name}-${i}`} delay={i * 0.05}>
               <Link href={`/collections/${item.slug}`}>
                 <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#2a0812] transition-all hover:shadow-xl hover:shadow-gold/10 hover:-translate-y-1 cursor-pointer">
                   <div className="aspect-square relative overflow-hidden bg-black/20">

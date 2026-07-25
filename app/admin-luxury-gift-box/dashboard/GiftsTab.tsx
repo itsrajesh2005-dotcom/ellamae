@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Trash2, Upload, FileText, Image as ImageIcon, CheckCircle, X } from 'lucide-react';
+import { Search, Plus, Eye, Upload, FileText, Image as ImageIcon, CheckCircle, X } from 'lucide-react';
 
 export default function GiftsManagement() {
   const [gifts, setGifts] = useState<any[]>([]);
@@ -34,18 +34,13 @@ export default function GiftsManagement() {
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
 
-  const PHP_GIFTS_API = 'http://localhost/luxury-backend/manage-gifts.php';
-  const PHP_CATEGORIES_API = 'http://localhost/luxury-backend/manage-categories.php';
-  const NEXT_GIFTS_API = '/api/gifts';
-  const NEXT_CATEGORIES_API = '/api/categories';
+  const GIFTS_API = '/api/gifts-db';
+  const CATEGORIES_API = '/api/categories-db';
 
   // 1. DYNAMIC CATEGORIES RETRIEVAL HOOK
   const fetchLiveCategories = async () => {
     try {
-      let res = await fetch(NEXT_CATEGORIES_API).catch(() => null);
-      if (!res || !res.ok) {
-        res = await fetch(PHP_CATEGORIES_API);
-      }
+      const res = await fetch(CATEGORIES_API);
       const data = await res.json();
       if (Array.isArray(data)) {
         setCategories(data);
@@ -61,16 +56,11 @@ export default function GiftsManagement() {
   // 2. READ / SEARCH GIFTS WITH BACKEND INTEGRATION 
   const fetchGiftsFromServer = async (search = "") => {
     try {
-      let url = `${NEXT_GIFTS_API}?status=all`;
+      let url = `${GIFTS_API}?status=all`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
       }
-      let response = await fetch(url).catch(() => null);
-      if (!response || !response.ok) {
-        let fallbackUrl = `${PHP_GIFTS_API}?status=all`;
-        if (search) fallbackUrl += `&search=${encodeURIComponent(search)}`;
-        response = await fetch(fallbackUrl);
-      }
+      const response = await fetch(url);
       const data = await response.json();
       if (Array.isArray(data)) {
         setGifts(data);
@@ -164,7 +154,6 @@ export default function GiftsManagement() {
 
     try {
       const payload = {
-        action: 'CREATE',
         category_id: Number(newCategoryId),
         title: newName,
         price: Number(newPrice) || 0,
@@ -173,19 +162,11 @@ export default function GiftsManagement() {
         status: newStatus,
         images: newImageStrings
       };
-      let response = await fetch(NEXT_GIFTS_API, {
+      const response = await fetch(GIFTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).catch(() => null);
-
-      if (!response || !response.ok) {
-        response = await fetch(PHP_GIFTS_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
+      });
       
       if (!response.ok) {
         const text = await response.text();
@@ -195,14 +176,9 @@ export default function GiftsManagement() {
 
       const result = await response.json();
       if (result.status === 'success') {
-        // Clear all input states
         setNewName(''); setNewDescription(''); setNewPrice(''); setNewStacks('0'); setNewImageStrings([]);
         setActiveSubStep('details');
-        
-        // Exit structural form overlay workspace panel section mapping 
         setShowMasterAddOverlay(false);
-        
-        // Instantly reload active views data streams
         fetchGiftsFromServer(searchTerm);
       } else {
         alert(result.message);
@@ -242,7 +218,6 @@ export default function GiftsManagement() {
 
     try {
       const payload = {
-        action: 'UPDATE',
         id: selectedGift.id,
         category_id: Number(editCategoryId) || (categories.length > 0 ? Number(categories[0].id) : 1),
         title: editName,
@@ -252,19 +227,11 @@ export default function GiftsManagement() {
         status: editStatus,
         images: editImageStrings
       };
-      let response = await fetch(NEXT_GIFTS_API, {
-        method: 'POST',
+      const response = await fetch(GIFTS_API, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).catch(() => null);
-
-      if (!response || !response.ok) {
-        response = await fetch(PHP_GIFTS_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
+      });
 
       if (!response.ok) {
         const text = await response.text();
@@ -289,20 +256,10 @@ export default function GiftsManagement() {
     if (!confirm("Are you confident about completely erasing this distinct item?")) return;
 
     try {
-      const payload = { action: 'DELETE', id: id };
-      let response = await fetch(NEXT_GIFTS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(() => null);
-
-      if (!response || !response.ok) {
-        response = await fetch(PHP_GIFTS_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
+      const response = await fetch(`${GIFTS_API}?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
 
       if (!response.ok) {
         const text = await response.text();
@@ -323,211 +280,211 @@ export default function GiftsManagement() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white text-black font-sans">
-      <main className="flex-1 p-8 overflow-x-hidden relative">
-        {/* Header Content */}
-        <div className="flex justify-between items-center mb-6">
+    <div className="flex min-h-full bg-transparent text-black font-sans">
+      <main className="flex-1 overflow-x-hidden relative">
+
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-serif tracking-wide text-gray-900 font-bold">Gifts</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage luxury gift items synced live with server schema tracking</p>
+            <h1 className="text-3xl font-bold tracking-tight text-[#2A0812] font-serif">Gifts</h1>
+            <p className="text-sm text-[#d4af37]/80 mt-1.5 tracking-wide">Manage luxury gift items synced live with the server</p>
           </div>
           <button 
             onClick={() => { setActiveSubStep('details'); setShowMasterAddOverlay(true); }}
-            className="flex items-center space-x-2 bg-white border border-black text-black px-4 py-2 rounded shadow-sm hover:bg-gray-50 transition-all font-bold text-sm"
+            className="flex items-center gap-2 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white px-6 py-3 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-[#2A0812]/30 transition-all duration-300 border border-[#d4af37]/20"
           >
-            <Plus size={16} className="text-black stroke-[3]" />
-            <span className="text-black font-bold">Add Gift</span>
+            <Plus size={16} className="stroke-[2.5] text-[#d4af37]" />
+            Add Gift
           </button>
         </div>
 
         {/* Status Toggle Buttons */}
-        <div className="flex gap-2 mb-6">
+        <div className="inline-flex items-center bg-white/60 backdrop-blur-sm rounded-2xl p-1.5 mb-6 border border-[#d4af37]/15 shadow-sm">
           <button
             onClick={() => setCurrentStatusTab('Active')}
-            className={`px-4 py-2 text-xs font-bold rounded border transition-all ${
+            className={`px-6 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 ${
               currentStatusTab === 'Active'
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+                ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white shadow-md shadow-[#2A0812]/20'
+                : 'text-gray-500 hover:text-[#2A0812] hover:bg-[#d4af37]/10'
             }`}
           >
             Active
           </button>
           <button
             onClick={() => setCurrentStatusTab('Inactive')}
-            className={`px-4 py-2 text-xs font-bold rounded border transition-all ${
+            className={`px-6 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 ${
               currentStatusTab === 'Inactive'
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+                ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white shadow-md shadow-[#2A0812]/20'
+                : 'text-gray-500 hover:text-[#2A0812] hover:bg-[#d4af37]/10'
             }`}
           >
             Inactive
           </button>
         </div>
 
-        {/* Dynamic Context Search Element */}
-        <div className="relative max-w-md mb-6 flex items-center">
-          <Search size={16} className="text-gray-500 absolute left-3 z-10 pointer-events-none" />
+        {/* Search */}
+        <div className="relative max-w-md mb-8">
+          <Search size={16} className="text-[#d4af37]/60 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search by Title, Description or Unique ID..."
+            placeholder="Search gifts by title, description or ID..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               fetchGiftsFromServer(e.target.value);
             }}
-            className="w-full bg-gray-50 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black text-black font-bold placeholder-gray-400 pl-10 pr-4 py-2"
+            className="w-full bg-white/80 backdrop-blur-sm border border-[#d4af37]/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] text-black placeholder-gray-400 pl-11 pr-4 py-3 transition-all duration-300 shadow-sm"
           />
         </div>
 
-        {/* Main Data Presentation Layout Table */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-8">
+        {/* Table */}
+        <div className="bg-white/70 backdrop-blur-md border border-[#d4af37]/15 rounded-2xl overflow-hidden shadow-lg shadow-[#2A0812]/5 mb-8">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-xs font-bold tracking-wider uppercase">
-                <th className="py-4 px-4 w-28 text-black font-bold">Unique ID</th>
-                <th className="py-4 px-4 w-20 text-black font-bold">Image</th>
-                <th className="py-4 px-4 text-black font-bold">Product Title</th>
-                <th className="py-4 px-4 text-black font-bold">Description Specifications</th>
-                <th className="py-4 px-4 text-black font-bold">Price</th>
-                <th className="py-4 px-4 text-black font-bold">Stacks</th>
-                <th className="py-4 px-4 text-black font-bold">Status</th>
-                <th className="py-4 px-4 text-center text-black font-bold">Actions</th>
+              <tr className="border-b border-[#d4af37]/10 bg-gradient-to-r from-[#faf6f0]/50 to-white text-[11px] font-bold tracking-wider uppercase text-[#2A0812]/70">
+                <th className="py-4 px-5 w-28">ID</th>
+                <th className="py-4 px-5 w-20">Image</th>
+                <th className="py-4 px-5">Title</th>
+                <th className="py-4 px-5">Description</th>
+                <th className="py-4 px-5">Price</th>
+                <th className="py-4 px-5">Stacks</th>
+                <th className="py-4 px-5">Status</th>
+                <th className="py-4 px-5 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-xs">
+            <tbody className="divide-y divide-[#d4af37]/5 text-xs">
               {gifts.filter((gift) => gift.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center p-6 text-gray-400">No {currentStatusTab.toLowerCase()} tracking records matches current index criteria.</td>
+                  <td colSpan={8} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} gifts found.</td>
                 </tr>
               ) : (
-                gifts
-                  .filter((gift) => gift.status === currentStatusTab)
-                  .map((gift) => {
-                    const primaryImage = (() => {
-                      if (Array.isArray(gift.images) && gift.images.length > 0 && gift.images[0]) return gift.images[0];
-                      if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {
-                        try {
-                          const parsed = JSON.parse(gift.images);
-                          if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
-                        } catch (e) {}
-                      }
-                      if (typeof gift.images === 'string' && gift.images.length > 0) return gift.images;
-                      if (typeof gift.image === 'string' && gift.image.length > 0) return gift.image;
-                      if (typeof gift.image_path === 'string' && gift.image_path.length > 0) return gift.image_path;
-                      if (typeof gift.main_image === 'string' && gift.main_image.length > 0) return gift.main_image;
-                      return null;
-                    })();
+                gifts.filter((gift) => gift.status === currentStatusTab).map((gift) => {
+                  const images = (() => {
+                    if (Array.isArray(gift.images) && gift.images.length > 0) return gift.images.filter(Boolean);
+                    if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {
+                      try { return JSON.parse(gift.images); } catch (e) {}
+                    }
+                    if (typeof gift.images === 'string' && gift.images.length > 0) return [gift.images];
+                    if (typeof gift.image === 'string' && gift.image.length > 0) return [gift.image];
+                    if (typeof gift.image_path === 'string' && gift.image_path.length > 0) return [gift.image_path];
+                    return [];
+                  })();
+                  const primaryImage = images.length > 0 ? images[0] : null;
+                  const stackCount = gift.stacks !== undefined && gift.stacks !== null ? gift.stacks
+                    : (gift.stack !== undefined && gift.stack !== null ? gift.stack : 0);
 
-                    const stackCount = gift.stacks !== undefined && gift.stacks !== null 
-                      ? gift.stacks 
-                      : (gift.stack !== undefined && gift.stack !== null ? gift.stack : 0);
-
-                    return (
-                      <tr key={gift.id} className="hover:bg-gray-50/50 transition-colors">
-                        {/* Displays dynamically generated ELLAMAE prefix string tags */}
-                        <td className="py-4 px-4 font-bold text-gray-900 tracking-wider">{gift.display_id || `ELLAMAE${gift.id}`}</td>
-                        <td className="py-2 px-4">
-                          {primaryImage ? (
-                            <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50">
-                              <img src={primaryImage} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className="w-12 h-12 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                              <ImageIcon size={16} />
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 font-bold text-gray-950">{gift.title}</td>
-                        <td className="py-4 px-4 text-gray-700 font-medium max-w-xs truncate">{gift.description}</td>
-                        <td className="py-4 px-4 font-bold text-gray-950">₹{gift.price}</td>
-                        <td className="py-4 px-4 font-bold text-gray-950">{stackCount}</td>
-                        <td className="py-4 px-4">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            gift.status === 'Active' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-300'
-                          }`}>
-                            {gift.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex justify-center space-x-3 text-black">
-                            <button onClick={() => handleViewClick(gift)} className="hover:text-amber-600 transition-colors"><Eye size={16} className="stroke-[2.5]" /></button>
+                  return (
+                    <tr key={gift.id} className="hover:bg-[#d4af37]/5 transition-all duration-200 group">
+                      <td className="py-3.5 px-5 font-medium text-[#2A0812]/60 text-xs">{gift.display_id || `ELLAMAE${gift.id}`}</td>
+                      <td className="py-3 px-5">
+                        {primaryImage ? (
+                          <div className="w-12 h-12 rounded-xl border border-[#d4af37]/20 overflow-hidden bg-[#faf6f0] shadow-sm group-hover:shadow-md transition-shadow">
+                            <img src={primaryImage} alt="" className="w-full h-full object-cover" />
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl border border-[#d4af37]/20 bg-[#faf6f0] flex items-center justify-center text-[#d4af37]/40">
+                            <ImageIcon size={16} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{gift.title}</td>
+                      <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{gift.description}</td>
+                      <td className="py-3.5 px-5 font-semibold text-[#2A0812]">₹{gift.price}</td>
+                      <td className="py-3.5 px-5 font-medium text-gray-600">{stackCount}</td>
+                      <td className="py-3.5 px-5">
+                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold border ${
+                          gift.status === 'Active' 
+                            ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white border-[#2A0812] shadow-sm' 
+                            : 'bg-gray-100 text-gray-500 border-gray-200'
+                        }`}>
+                          {gift.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-5">
+                        <div className="flex justify-center space-x-3 text-gray-400">
+                          <button onClick={() => handleViewClick(gift)} className="hover:text-[#d4af37] transition-colors p-1.5 rounded-lg hover:bg-[#d4af37]/10">
+                            <Eye size={16} className="stroke-[2]" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* WORKSPACE OVERLAY FORM SECTION */}
+        {/* ADD GIFT MODAL */}
         {showMasterAddOverlay && (
-          <div className="absolute inset-0 z-50 flex flex-col bg-white">
-            <div className="flex justify-between items-center px-10 py-6 border-b border-gray-200 relative">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-black">Create Luxury Asset Component</h2>
-                <p className="text-xs text-gray-500">Fill configurations logs to insert into server data</p>
+          <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#2A0812]/60 backdrop-blur-md p-4">
+            <div className="bg-white/95 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl shadow-[#2A0812]/30 flex flex-col overflow-hidden max-h-[90vh] border border-[#d4af37]/20">
+              <div className="flex justify-between items-center px-8 py-6 border-b border-[#d4af37]/10 bg-gradient-to-r from-[#faf6f0]/50 to-white">
+                <div>
+                  <h2 className="text-xl font-bold text-[#2A0812] font-serif">Add New Gift</h2>
+                  <p className="text-xs text-[#d4af37]/70 mt-1 tracking-wide">Fill in details to create a new gift product</p>
+                </div>
+                <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="text-gray-400 hover:text-[#2A0812] transition-colors p-2 rounded-lg hover:bg-[#d4af37]/10">
+                  <X size={20} />
+                </button>
               </div>
-              <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="border border-black bg-transparent px-4 py-2 rounded font-bold text-xs cursor-pointer hover:bg-gray-50">Exit ✕</button>
-            </div>
 
-            <div className="flex-1 p-10 overflow-y-auto">
-              <div className="max-w-2xl mx-auto">
-                <div className="flex items-center gap-8 bg-gray-50 border border-gray-200 p-4 rounded-md mb-8">
-                  <div className={`flex items-center gap-2.5 ${activeSubStep === 'details' ? 'opacity-100' : 'opacity-50'}`}>
-                    <div className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs ${activeSubStep === 'details' ? 'bg-black text-white' : 'text-black'}`}><FileText size={12} /></div>
-                    <span className="font-bold text-xs text-black">1. Gift Specifications</span>
+              <div className="flex-1 px-8 py-7 overflow-y-auto">
+                {/* Step Indicator */}
+                <div className="flex items-center gap-6 bg-gradient-to-r from-[#faf6f0]/80 to-white border border-[#d4af37]/15 px-6 py-4 rounded-2xl mb-8 shadow-sm">
+                  <div className={`flex items-center gap-3 transition-opacity duration-300 ${activeSubStep === 'details' ? 'opacity-100' : 'opacity-40'}`}>
+                    <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${activeSubStep === 'details' ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] border-[#2A0812] text-white shadow-md shadow-[#2A0812]/20' : 'border-[#d4af37]/30 text-[#d4af37]/50'}`}>
+                      <FileText size={15} />
+                    </div>
+                    <span className="font-semibold text-sm text-[#2A0812]">Details</span>
                   </div>
-                  <div className="text-gray-400 font-bold">➔</div>
-                  <div className={`flex items-center gap-2.5 ${activeSubStep === 'images' ? 'opacity-100' : 'opacity-50'}`}>
-                    <div className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs ${activeSubStep === 'images' ? 'bg-black text-white' : 'text-black'}`}><ImageIcon size={12} /></div>
-                    <span className="font-bold text-xs text-black">2. Visual Portfolio</span>
+                  <div className="text-[#d4af37]/30 text-lg font-light">→</div>
+                  <div className={`flex items-center gap-3 transition-opacity duration-300 ${activeSubStep === 'images' ? 'opacity-100' : 'opacity-40'}`}>
+                    <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${activeSubStep === 'images' ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] border-[#2A0812] text-white shadow-md shadow-[#2A0812]/20' : 'border-[#d4af37]/30 text-[#d4af37]/50'}`}>
+                      <ImageIcon size={15} />
+                    </div>
+                    <span className="font-semibold text-sm text-[#2A0812]">Images</span>
                   </div>
                 </div>
 
                 {activeSubStep === 'details' && (
                   <form onSubmit={handleNextSubStep} className="text-black text-sm">
                     <div className="mb-5">
-                      <label className="block font-bold mb-1">Product Title Name</label>
-                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Enter Product Name" className="w-full p-2.5 border border-black rounded font-bold text-black" />
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Product Title</label>
+                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Premium Gift Hamper" className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
-
                     <div className="mb-5">
-                      <label className="block font-bold mb-1">Product Description / Specifications</label>
-                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write overview layout logs description..." className="w-full p-2.5 border border-black rounded font-bold resize-none text-black" />
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Description</label>
+                      <textarea rows={3} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a product description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
-
                     <div className="mb-5">
-                      <label className="block font-bold mb-1">Relational Category Assignment</label>
-                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-2.5 border border-black rounded font-bold bg-white text-black">
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category</label>
+                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
                         {categories.map((cat) => (
                           <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
                     </div>
-
-                    <div className="grid grid-cols-3 gap-4 mb-10">
+                    <div className="grid grid-cols-3 gap-4 mb-8">
                       <div>
-                        <label className="block font-bold mb-1">Retail Price (₹)</label>
-                        <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Amount (₹)" className="w-full p-2.5 border border-black rounded font-bold text-black" />
+                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Price (₹)</label>
+                        <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="0" className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                       </div>
                       <div>
-                        <label className="block font-bold mb-1">Stacks</label>
-                        <input type="number" value={newStacks} onChange={(e) => setNewStacks(e.target.value)} placeholder="Stacks count" className="w-full p-2.5 border border-black rounded font-bold text-black" />
+                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Stacks</label>
+                        <input type="number" value={newStacks} onChange={(e) => setNewStacks(e.target.value)} placeholder="0" className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                       </div>
                       <div>
-                        <label className="block font-bold mb-1">Initial Status</label>
-                        <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2.5 border border-black rounded font-bold bg-white text-black">
+                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Status</label>
+                        <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
                           <option value="Active">Active</option>
                           <option value="Inactive">Inactive</option>
                         </select>
                       </div>
                     </div>
-
-                    <div className="flex justify-end border-t border-gray-200 pt-6 gap-4">
-                      <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
-                      <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded uppercase text-xs tracking-wider">Next step</button>
+                    <div className="flex justify-end border-t border-[#d4af37]/10 pt-6 gap-3">
+                      <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="px-6 py-3 border border-[#d4af37]/20 text-gray-600 hover:border-[#d4af37] hover:text-[#2A0812] font-semibold rounded-xl transition-all text-sm">Cancel</button>
+                      <button type="submit" className="px-7 py-3 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2A0812]/20 transition-all text-sm border border-[#d4af37]/20">Next →</button>
                     </div>
                   </form>
                 )}
@@ -536,23 +493,24 @@ export default function GiftsManagement() {
                   <div className="text-black">
                     <label className="block cursor-pointer mb-6">
                       <input type="file" accept="image/*" multiple onChange={handleRealImageUpload} className="hidden" />
-                      <div className="border-2 border-dashed border-black p-12 rounded-md flex flex-col items-center bg-gray-50 hover:bg-gray-100/70">
-                        <Upload size={36} className="text-black mb-3" />
-                        <span className="font-bold text-sm">Select Product Image Files (Multiple)</span>
+                      <div className="border-2 border-dashed border-[#d4af37]/30 hover:border-[#d4af37] p-12 rounded-2xl flex flex-col items-center bg-gradient-to-br from-[#faf6f0]/50 to-white hover:from-[#faf6f0] hover:to-white transition-all duration-300">
+                        <Upload size={36} className="text-[#d4af37]/60 mb-4" />
+                        <span className="font-semibold text-sm text-[#2A0812]">Click to upload product images</span>
+                        <span className="text-xs text-[#d4af37]/60 mt-2">PNG, JPG — multiple allowed</span>
                       </div>
                     </label>
 
-                    <span className="block font-bold mb-4 text-sm">Asset Preview Portfolio ({newImageStrings.length} selected)</span>
-                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50 mb-10 min-h-[140px]">
+                    <span className="block font-semibold mb-4 text-sm text-[#2A0812]">Selected Images ({newImageStrings.length})</span>
+                    <div className="border border-[#d4af37]/15 rounded-2xl p-5 bg-gradient-to-br from-[#faf6f0]/30 to-white mb-8 min-h-[140px]">
                       {newImageStrings.length > 0 ? (
                         <div className="grid grid-cols-4 gap-4">
                           {newImageStrings.map((imgStr, idx) => (
-                            <div key={idx} className="relative aspect-square border border-black rounded overflow-hidden group bg-white">
+                            <div key={idx} className="relative aspect-square border border-[#d4af37]/20 rounded-xl overflow-hidden group bg-white shadow-md group-hover:shadow-lg transition-shadow">
                               <img src={imgStr} alt="preview" className="w-full h-full object-cover" />
                               <button
                                 type="button"
                                 onClick={() => setNewImageStrings(prev => prev.filter((_, i) => i !== idx))}
-                                className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                className="absolute top-2 right-2 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                               >
                                 <X size={12} />
                               </button>
@@ -560,16 +518,16 @@ export default function GiftsManagement() {
                           ))}
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center min-h-[108px] text-gray-400">
-                          <span className="text-xs">No media portfolio assets selected yet</span>
+                        <div className="flex items-center justify-center min-h-[100px] text-[#d4af37]/40">
+                          <span className="text-sm">No images selected yet</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex justify-end border-t border-gray-200 pt-6 gap-4">
-                      <button type="button" onClick={() => setActiveSubStep('details')} className="px-6 py-3 border border-black bg-white font-bold rounded">← Back</button>
-                      <button type="button" onClick={handleFinalGiftSubmit} className="px-8 py-3 bg-black text-white font-bold rounded uppercase flex items-center gap-2 text-xs">
-                        <CheckCircle size={14} /> Save Product
+                    <div className="flex justify-end border-t border-[#d4af37]/10 pt-6 gap-3">
+                      <button type="button" onClick={() => setActiveSubStep('details')} className="px-6 py-3 border border-[#d4af37]/20 text-gray-600 hover:border-[#d4af37] hover:text-[#2A0812] font-semibold rounded-xl transition-all text-sm">← Back</button>
+                      <button type="button" onClick={handleFinalGiftSubmit} className="px-7 py-3 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2A0812]/20 transition-all text-sm flex items-center gap-2 border border-[#d4af37]/20">
+                        <CheckCircle size={16} className="text-[#d4af37]" /> Save Gift
                       </button>
                     </div>
                   </div>
@@ -579,108 +537,110 @@ export default function GiftsManagement() {
           </div>
         )}
 
-        {/* PREVIEW + DYNAMIC SPECIFICATIONS EDITS LAYER CONTAINER */}
+        {/* EDIT GIFT MODAL */}
         {showPreviewModal && (
-          <div className="absolute inset-0 z-50 flex flex-col bg-white">
-            <div className="flex justify-between items-center px-10 py-6 border-b border-gray-200 relative">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-black">Manage Gift Asset Configs</h2>
-                <p className="text-xs text-gray-500">Update metrics and configurations values parameters</p>
-              </div>
-              <button type="button" onClick={() => setShowPreviewModal(false)} className="border border-black bg-transparent px-4 py-2 rounded font-bold text-xs cursor-pointer hover:bg-gray-50">Exit ✕</button>
-            </div>
-
-            <div className="flex-1 p-10 overflow-y-auto">
-              <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12">
-                
-                {/* Visual View Display Layout Container */}
+          <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#2A0812]/60 backdrop-blur-md p-4">
+            <div className="bg-white/95 backdrop-blur-xl w-full max-w-5xl rounded-3xl shadow-2xl shadow-[#2A0812]/30 flex flex-col overflow-hidden max-h-[90vh] border border-[#d4af37]/20">
+              <div className="flex justify-between items-center px-8 py-6 border-b border-[#d4af37]/10 bg-gradient-to-r from-[#faf6f0]/50 to-white">
                 <div>
-                  <span className="block font-bold text-black mb-3 uppercase text-xs tracking-wider">Product Layout Assets ({editImageStrings.length} total)</span>
-                  <div className="border border-black rounded-md p-4 bg-gray-50 mb-5 min-h-[200px]">
-                    {editImageStrings.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-3">
-                        {editImageStrings.map((imgStr, idx) => (
-                          <div key={idx} className="relative aspect-square border border-gray-300 rounded overflow-hidden group bg-white">
-                            <img src={imgStr} alt="thumbnail" className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setEditImageStrings(prev => prev.filter((_, i) => i !== idx))}
-                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center min-h-[168px] text-gray-400">
-                        <ImageIcon size={40} className="mx-auto mb-2" />
-                        <span className="text-xs">No Asset Graphics Found</span>
-                      </div>
-                    )}
+                  <h2 className="text-xl font-bold text-[#2A0812] font-serif">Edit Gift</h2>
+                  <p className="text-xs text-[#d4af37]/70 mt-1 tracking-wide">Update gift product details and images</p>
+                </div>
+                <button type="button" onClick={() => setShowPreviewModal(false)} className="text-gray-400 hover:text-[#2A0812] transition-colors p-2 rounded-lg hover:bg-[#d4af37]/10">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-8 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+
+                  {/* Left — Images */}
+                  <div>
+                    <span className="block font-semibold text-xs uppercase tracking-wider text-[#2A0812]/70 mb-4">Product Images ({editImageStrings.length})</span>
+                    <div className="border border-[#d4af37]/15 rounded-2xl p-5 bg-gradient-to-br from-[#faf6f0]/30 to-white mb-5 min-h-[200px]">
+                      {editImageStrings.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-4">
+                          {editImageStrings.map((imgStr, idx) => (
+                            <div key={idx} className="relative aspect-square border border-[#d4af37]/20 rounded-xl overflow-hidden group bg-white shadow-md group-hover:shadow-lg transition-shadow">
+                              <img src={imgStr} alt="thumbnail" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setEditImageStrings(prev => prev.filter((_, i) => i !== idx))}
+                                className="absolute top-2 right-2 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center min-h-[180px] text-[#d4af37]/40">
+                          <ImageIcon size={40} className="mx-auto mb-3" />
+                          <span className="text-sm">No images found</span>
+                        </div>
+                      )}
+                    </div>
+                    <label className="cursor-pointer border-2 border-dashed border-[#d4af37]/30 hover:border-[#d4af37] rounded-2xl p-5 flex flex-col items-center justify-center bg-gradient-to-br from-[#faf6f0]/50 to-white hover:from-[#faf6f0] hover:to-white transition-all duration-300">
+                      <input type="file" accept="image/*" multiple onChange={handleEditImageUpload} className="hidden" />
+                      <Upload size={24} className="text-[#d4af37]/60 mb-2" />
+                      <span className="text-xs font-semibold text-[#2A0812]">Add More Images</span>
+                    </label>
                   </div>
 
-                  <label className="cursor-pointer border border-dashed border-black rounded p-4 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all">
-                    <input type="file" accept="image/*" multiple onChange={handleEditImageUpload} className="hidden" />
-                    <Upload size={18} className="text-black mb-1" />
-                    <span className="text-xs font-bold">Add Additional Product Asset Graphics</span>
-                  </label>
+                  {/* Right — Form */}
+                  <div>
+                    <form onSubmit={handleUpdateGiftSubmit} className="flex flex-col text-black text-sm h-full">
+                      <div className="grid grid-cols-2 gap-4 mb-5">
+                        <div>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Title</label>
+                          <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category</label>
+                          <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="mb-5">
+                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Description</label>
+                        <textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4 mb-8">
+                        <div>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Price (₹)</label>
+                          <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Stacks</label>
+                          <input type="number" value={editStacks} onChange={(e) => setEditStacks(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
+                        </div>
+                        <div>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Status</label>
+                          <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-6 border-t border-[#d4af37]/10 mt-auto gap-3">
+                        <button type="button" onClick={() => setShowPreviewModal(false)} className="px-6 py-3 border border-[#d4af37]/20 text-gray-600 hover:border-[#d4af37] hover:text-[#2A0812] font-semibold rounded-xl transition-all text-sm">Cancel</button>
+                        <button type="submit" className="px-7 py-3 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2A0812]/20 transition-all text-sm border border-[#d4af37]/20">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+
                 </div>
-
-                {/* Form Configurations Fields Module Layer */}
-                <div>
-                  <form onSubmit={handleUpdateGiftSubmit} className="flex flex-col text-black text-sm h-full">
-                    <div className="grid grid-cols-2 gap-4 mb-5">
-                      <div>
-                        <label className="block font-bold mb-1">Product Identity Title</label>
-                        <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
-                      </div>
-                      <div>
-                        <label className="block font-bold mb-1">Parent Category Map</label>
-                        <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold bg-white">
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="mb-5">
-                      <label className="block font-bold mb-1">Detailed Item Specifications</label>
-                      <textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold resize-none" />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 mb-8">
-                      <div>
-                        <label className="block font-bold mb-1">Price Matrix (₹)</label>
-                        <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
-                      </div>
-                      <div>
-                        <label className="block font-bold mb-1">Stacks</label>
-                        <input type="number" value={editStacks} onChange={(e) => setEditStacks(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold" />
-                      </div>
-                      <div>
-                        <label className="block font-bold mb-1">Status Mode Log</label>
-                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-2.5 border border-gray-400 rounded font-bold bg-white">
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end pt-5 border-t border-gray-200 mt-auto gap-4">
-                      <div className="flex gap-3">
-                        <button type="button" onClick={() => setShowPreviewModal(false)} className="px-6 py-3 border border-black bg-white font-bold rounded">Cancel</button>
-                        <button type="submit" className="px-8 py-3 bg-black text-white font-bold rounded hover:bg-gray-900 transition-all">Update Changes</button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-
               </div>
             </div>
           </div>
         )}
+
       </main>
     </div>
   );

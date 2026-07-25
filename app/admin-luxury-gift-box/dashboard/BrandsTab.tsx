@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, CheckCircle, Upload, Image as ImageIcon, Layers, X } from 'lucide-react';
-const API_URL = "/api/categories-db";
 
-export default function CategoriesManagement() {
-  const [categories, setCategories] = useState<any[]>([]);
+const API_URL = "/api/brands-db";
+
+export default function BrandsTab() {
+  const [brands, setBrands] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentStatusTab, setCurrentStatusTab] = useState<'Active' | 'Inactive'>('Active');
   
@@ -13,9 +14,9 @@ export default function CategoriesManagement() {
   const [showMasterAddOverlay, setShowMasterAddOverlay] = useState(false);
   const [activeSubStep, setActiveSubStep] = useState<'details' | 'banner'>('details');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [selectedBrand, setSelectedBrand] = useState<any>(null);
 
-  // Form states for creating a new category
+  // Form states for creating a new brand
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newStatus, setNewStatus] = useState('Active');
@@ -28,27 +29,35 @@ export default function CategoriesManagement() {
   const [editImageString, setEditImageString] = useState('');
 
   // 1. READ & DYNAMIC SEARCH PIPELINE
-  const fetchCategories = async (search = "") => {
-    try {
-      let url = `${API_URL}?status=all`;
-      if (search) {
-        url += `&search=${encodeURIComponent(search)}`;
+  const fetchBrands = async () => {
+  try {
+    const response = await fetch('/api/brands-db?status=all');
+    
+    // Check if the response is JSON
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const data = await response.json();
+      if (response.ok) {
+        setBrands(data); // Ungaloda state setter name
+      } else {
+        console.error("API Error:", data);
       }
-      const res = await fetch(url);
-      const data = await res.json();
-      setCategories(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed fetching categories from database schema:", error);
+    } else {
+      const text = await response.text();
+      console.error("Non-JSON Server Response:", text);
     }
-  };
+  } catch (error) {
+    console.error("Failed fetching brands:", error);
+  }
+};
 
   useEffect(() => {
-    fetchCategories();
+    fetchBrands();
   }, []);
 
   const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return alert('Please enter a Category Name');
+    if (!newName.trim()) return alert('Please enter a Brand Name');
     setActiveSubStep('banner');
   };
 
@@ -103,65 +112,76 @@ export default function CategoriesManagement() {
     }
   };
 
-  // 2. CREATE CATEGORY ROUTINE (SAVE & EXIT)
-  const handleFinalCategorySubmit = async () => {
-    if (!newName.trim()) return alert('Category Name is required');
+  // 2. CREATE BRAND ROUTINE (SAVE & EXIT)
+  const handleFinalBrandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
+    // Constructing brand object from your individual states
+    const newBrandData = {
+      name: newName,
+      description: newDescription,
+      status: newStatus,
+      banner_image: newImageString
+    };
+
     try {
-      const postPayload = {
-        name: newName,
-        description: newDescription,
-        status: newStatus,
-        banner_image: newImageString
-      };
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(postPayload),
+      const response = await fetch('/api/brands-db', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newBrandData), // Fixed: Now using created brand object
       });
 
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("Server Error Response:", text);
-        return alert(`Server Error: ${response.status} ${response.statusText}`);
-      }
+      const contentType = response.headers.get("content-type");
 
-      const result = await response.json();
-      
-      if (result.status === "success") {
-        setNewName("");
-        setNewDescription("");
-        setNewStatus("Active");
-        setNewImageString("");
-        setActiveSubStep("details");
-        setShowMasterAddOverlay(false);
-        fetchCategories(searchTerm);
+      if (response.ok) {
+        if (contentType && contentType.includes("application/json")) {
+          const result = await response.json();
+          alert("Brand saved successfully!");
+          
+          // Form resets and Modal Close
+          setNewName('');
+          setNewDescription('');
+          setNewStatus('Active');
+          setNewImageString('');
+          setShowMasterAddOverlay(false);
+
+          fetchBrands(); // Refresh list after save
+        }
       } else {
-        alert(result.message);
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          alert(`Error: ${errorData.error || 'Failed to save'}`);
+        } else {
+          const text = await response.text();
+          console.error("Server Error Response:", text);
+          alert(`Server Error: ${response.status} ${response.statusText}`);
+        }
       }
     } catch (error) {
-      console.error("Data insertion flow crash logs:", error);
-      alert("Error saving category. Please verify your connection or check console logs.");
+      console.error("Submit error:", error);
+      alert("Something went wrong while saving!");
     }
   };
 
-  const handleViewClick = (category: any) => {
-    setSelectedCategory(category);
-    setEditName(category.name);
-    setEditDescription(category.description);
-    setEditStatus(category.status);
-    setEditImageString(category.banner_image || "");
+  const handleViewClick = (brand: any) => {
+    setSelectedBrand(brand);
+    setEditName(brand.name);
+    setEditDescription(brand.description);
+    setEditStatus(brand.status);
+    setEditImageString(brand.banner_image || "");
     setShowPreviewModal(true);
   };
 
-  // 3. UPDATE CATEGORY SPECIFICATIONS LOGS
-  const handleUpdateCategorySubmit = async (e: React.FormEvent) => {
+  // 3. UPDATE BRAND SPECIFICATIONS LOGS
+  const handleUpdateBrandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCategory) return;
+    if (!selectedBrand) return;
 
     try {
       const updatePayload = {
-        id: selectedCategory.id,
+        id: selectedBrand.id,
         name: editName,
         description: editDescription,
         status: editStatus,
@@ -182,40 +202,12 @@ export default function CategoriesManagement() {
       const result = await response.json();
       if (result.status === "success") {
         setShowPreviewModal(false);
-        fetchCategories(searchTerm);
+        fetchBrands(searchTerm);
       } else {
         alert(result.message);
       }
     } catch (error) {
       console.error("Data update stream crash:", error);
-    }
-  };
-
-  // 4. ISOLATED TARGETED DELETIONS (ONLY DROPS REQUESTED TARGET)
-  const handleDeleteCategory = async (id: number) => {
-    if (!confirm("Are you positive you want to completely discard this isolated category entry?")) return;
-
-    try {
-      const response = await fetch(`${API_URL}?id=${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" }
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("Server Error Response:", text);
-        return alert(`Server Error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      if (result.status === "success") {
-        setShowPreviewModal(false);
-        fetchCategories(searchTerm);
-      } else {
-        alert(result.message);
-      }
-    } catch (error) {
-      console.error("Decoupled deletion action error trace:", error);
     }
   };
 
@@ -226,15 +218,15 @@ export default function CategoriesManagement() {
         {/* Header Block Layout */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#2A0812] font-serif">Categories</h1>
-            <p className="text-sm text-[#d4af37]/80 mt-1.5 tracking-wide">Manage and track structural store classifications</p>
+            <h1 className="text-3xl font-bold tracking-tight text-[#2A0812] font-serif">Brands</h1>
+            <p className="text-sm text-[#d4af37]/80 mt-1.5 tracking-wide">Manage luxury brand items synced live with the server</p>
           </div>
           <button 
             onClick={() => { setActiveSubStep('details'); setShowMasterAddOverlay(true); }}
             className="flex items-center gap-2 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white px-6 py-3 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-[#2A0812]/30 transition-all duration-300 border border-[#d4af37]/20"
           >
             <Plus size={16} className="stroke-[2.5] text-[#d4af37]" />
-            Add Category
+            Add Brand
           </button>
         </div>
 
@@ -267,11 +259,11 @@ export default function CategoriesManagement() {
           <Search size={16} className="text-[#d4af37]/60 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search categories..."
+            placeholder="Search brands by name or ID..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
-              fetchCategories(e.target.value);
+              fetchBrands(e.target.value);
             }}
             className="w-full bg-white/80 backdrop-blur-sm border border-[#d4af37]/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] text-black placeholder-gray-400 pl-11 pr-4 py-3 transition-all duration-300 shadow-sm"
           />
@@ -284,27 +276,27 @@ export default function CategoriesManagement() {
               <tr className="border-b border-[#d4af37]/10 bg-gradient-to-r from-[#faf6f0]/50 to-white text-[11px] font-bold tracking-wider uppercase text-[#2A0812]/70">
                 <th className="py-4 px-5 w-12">ID</th>
                 <th className="py-4 px-5 w-24">Banner</th>
-                <th className="py-4 px-5">Category Name</th>
+                <th className="py-4 px-5">Brand Name</th>
                 <th className="py-4 px-5">Description</th>
                 <th className="py-4 px-5">Status</th>
                 <th className="py-4 px-5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#d4af37]/5 text-xs">
-              {categories.filter((cat) => cat.status === currentStatusTab).length === 0 ? (
+              {brands.filter((brand) => brand.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} categories found.</td>
+                  <td colSpan={6} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} brands found.</td>
                 </tr>
               ) : (
-                categories
-                  .filter((cat) => cat.status === currentStatusTab)
-                  .map((category, index) => (
-                  <tr key={category.id} className="hover:bg-[#d4af37]/5 transition-all duration-200 group">
+                brands
+                  .filter((brand) => brand.status === currentStatusTab)
+                  .map((brand, index) => (
+                  <tr key={brand.id} className="hover:bg-[#d4af37]/5 transition-all duration-200 group">
                     <td className="py-3.5 px-5 font-medium text-[#2A0812]/60">{index + 1}</td>
                     <td className="py-3 px-5">
-                      {category.banner_image ? (
+                      {brand.banner_image ? (
                         <div className="w-12 h-12 rounded-xl border border-[#d4af37]/20 overflow-hidden bg-[#faf6f0] shadow-sm group-hover:shadow-md transition-shadow">
-                          <img src={category.banner_image} alt="" className="w-full h-full object-cover" />
+                          <img src={brand.banner_image} alt="" className="w-full h-full object-cover" />
                         </div>
                       ) : (
                         <div className="w-12 h-12 rounded-xl border border-[#d4af37]/20 bg-[#faf6f0] flex items-center justify-center text-[#d4af37]/40">
@@ -312,20 +304,20 @@ export default function CategoriesManagement() {
                         </div>
                       )}
                     </td>
-                    <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{category.name}</td>
-                    <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{category.description}</td>
+                    <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{brand.name}</td>
+                    <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{brand.description}</td>
                     <td className="py-3.5 px-5">
                       <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold border ${
-                        category.status === 'Active' || category.status === 'active'
+                        brand.status === 'Active' || brand.status === 'active'
                           ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white border-[#2A0812] shadow-sm'
                           : 'bg-gray-100 text-gray-500 border-gray-200'
                       }`}>
-                        {category.status}
+                        {brand.status}
                       </span>
                     </td>
                     <td className="py-3.5 px-5">
                       <div className="flex justify-center space-x-3 text-gray-400">
-                        <button onClick={() => handleViewClick(category)} className="hover:text-[#d4af37] transition-colors p-1.5 rounded-lg hover:bg-[#d4af37]/10"><Eye size={16} className="stroke-[2]" /></button>
+                        <button onClick={() => handleViewClick(brand)} className="hover:text-[#d4af37] transition-colors p-1.5 rounded-lg hover:bg-[#d4af37]/10"><Eye size={16} className="stroke-[2]" /></button>
                       </div>
                     </td>
                   </tr>
@@ -335,15 +327,15 @@ export default function CategoriesManagement() {
           </table>
         </div>
 
-        {/* CREATE CATEGORY MODAL */}
+        {/* CREATE BRAND MODAL */}
         {showMasterAddOverlay && (
           <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#2A0812]/60 backdrop-blur-md p-4">
             <div className="bg-white/95 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl shadow-[#2A0812]/30 flex flex-col overflow-hidden max-h-[90vh] border border-[#d4af37]/20">
               {/* Modal Header */}
               <div className="flex justify-between items-center px-8 py-6 border-b border-[#d4af37]/10 bg-gradient-to-r from-[#faf6f0]/50 to-white">
                 <div>
-                  <h2 className="text-xl font-bold text-[#2A0812] font-serif">Create Category</h2>
-                  <p className="text-xs text-[#d4af37]/70 mt-1 tracking-wide">Fill in the details to create a new category</p>
+                  <h2 className="text-xl font-bold text-[#2A0812] font-serif">Create Brand</h2>
+                  <p className="text-xs text-[#d4af37]/70 mt-1 tracking-wide">Fill in the details to create a new brand entry</p>
                 </div>
                 <button type="button" onClick={() => setShowMasterAddOverlay(false)} className="text-gray-400 hover:text-[#2A0812] transition-colors p-2 rounded-lg hover:bg-[#d4af37]/10">
                   <X size={20} />
@@ -371,12 +363,12 @@ export default function CategoriesManagement() {
                 {activeSubStep === 'details' && (
                   <form onSubmit={handleNextSubStep} className="text-black text-sm">
                     <div className="mb-5">
-                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Name</label>
-                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Anniversary Gifts" className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Brand Name</label>
+                      <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. , Ellamae Brands" className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
                     <div className="mb-5">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Description</label>
-                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a short description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
+                      <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a short brand description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
                     <div className="mb-8">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Initial Status</label>
@@ -398,7 +390,7 @@ export default function CategoriesManagement() {
                       <input type="file" accept="image/*" onChange={handleNewBannerUpload} className="hidden" />
                       <div className="border-2 border-dashed border-[#d4af37]/30 hover:border-[#d4af37] p-12 rounded-2xl flex flex-col items-center bg-gradient-to-br from-[#faf6f0]/50 to-white hover:from-[#faf6f0] hover:to-white transition-all duration-300">
                         <Upload size={36} className="text-[#d4af37]/60 mb-4" />
-                        <span className="font-semibold text-sm text-[#2A0812]">Click to upload banner image</span>
+                        <span className="font-semibold text-sm text-[#2A0812]">Click to upload brand banner</span>
                         <span className="text-xs text-[#d4af37]/60 mt-2">PNG, JPG up to 5MB</span>
                       </div>
                     </label>
@@ -416,8 +408,8 @@ export default function CategoriesManagement() {
 
                     <div className="flex justify-end border-t border-[#d4af37]/10 pt-6 gap-3">
                       <button type="button" onClick={() => setActiveSubStep('details')} className="px-6 py-3 border border-[#d4af37]/20 text-gray-600 hover:border-[#d4af37] hover:text-[#2A0812] font-semibold rounded-xl transition-all text-sm">← Back</button>
-                      <button type="button" onClick={handleFinalCategorySubmit} className="px-7 py-3 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2A0812]/20 transition-all text-sm flex items-center gap-2 border border-[#d4af37]/20">
-                        <CheckCircle size={16} className="text-[#d4af37]" /> Save Category
+                      <button type="button" onClick={handleFinalBrandSubmit} className="px-7 py-3 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2A0812]/20 transition-all text-sm flex items-center gap-2 border border-[#d4af37]/20">
+                        <CheckCircle size={16} className="text-[#d4af37]" /> Save Brand
                       </button>
                     </div>
                   </div>
@@ -427,15 +419,15 @@ export default function CategoriesManagement() {
           </div>
         )}
 
-        {/* EDIT/VIEW CATEGORY MODAL */}
+        {/* EDIT/VIEW BRAND MODAL */}
         {showPreviewModal && (
           <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#2A0812]/60 backdrop-blur-md p-4">
             <div className="bg-white/95 backdrop-blur-xl w-full max-w-4xl rounded-3xl shadow-2xl shadow-[#2A0812]/30 flex flex-col overflow-hidden max-h-[90vh] border border-[#d4af37]/20">
               {/* Modal Header */}
               <div className="flex justify-between items-center px-8 py-6 border-b border-[#d4af37]/10 bg-gradient-to-r from-[#faf6f0]/50 to-white">
                 <div>
-                  <h2 className="text-xl font-bold text-[#2A0812] font-serif">Edit Category</h2>
-                  <p className="text-xs text-[#d4af37]/70 mt-1 tracking-wide">Update category details and banner image</p>
+                  <h2 className="text-xl font-bold text-[#2A0812] font-serif">Edit Brand</h2>
+                  <p className="text-xs text-[#d4af37]/70 mt-1 tracking-wide">Update brand details and banner image</p>
                 </div>
                 <button type="button" onClick={() => setShowPreviewModal(false)} className="text-gray-400 hover:text-[#2A0812] transition-colors p-2 rounded-lg hover:bg-[#d4af37]/10">
                   <X size={20} />
@@ -447,10 +439,10 @@ export default function CategoriesManagement() {
 
                   {/* Left — Banner */}
                   <div>
-                    <span className="block font-semibold text-xs uppercase tracking-wider text-[#2A0812]/70 mb-4">Category Banner</span>
+                    <span className="block font-semibold text-xs uppercase tracking-wider text-[#2A0812]/70 mb-4">Brand Banner</span>
                     <div className="border border-[#d4af37]/15 rounded-2xl overflow-hidden aspect-[16/10] bg-gradient-to-br from-[#faf6f0]/30 to-white mb-5 flex items-center justify-center">
                       {editImageString ? (
-                        <img src={editImageString} alt="Active Layout Grid Asset" className="w-full h-full object-contain" />
+                        <img src={editImageString} alt="Active Brand Banner" className="w-full h-full object-contain" />
                       ) : (
                         <div className="text-center text-[#d4af37]/40">
                           <ImageIcon size={40} className="mx-auto mb-3" />
@@ -467,9 +459,9 @@ export default function CategoriesManagement() {
 
                   {/* Right — Form */}
                   <div>
-                    <form onSubmit={handleUpdateCategorySubmit} className="flex flex-col text-black text-sm h-full">
+                    <form onSubmit={handleUpdateBrandSubmit} className="flex flex-col text-black text-sm h-full">
                       <div className="mb-5">
-                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Name</label>
+                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Brand Name</label>
                         <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
                       </div>
 

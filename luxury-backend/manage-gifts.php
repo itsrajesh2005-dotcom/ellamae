@@ -118,7 +118,7 @@ try {
         throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment. Please install php-mysql or use XAMPP PHP.");
     }
     /*---------DATABASE CONNECTION---------*/
-    $conn = new mysqli("localhost", "root", "", "ellamae_db");
+    $conn = new mysqli("192.168.1.79t", "root", "", "ellamae_db");
 
     if ($conn->connect_error) {
         throw new Exception("Database Connection Failed: " . $conn->connect_error);

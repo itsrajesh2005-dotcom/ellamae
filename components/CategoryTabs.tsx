@@ -56,7 +56,7 @@ export function CategoryTabs({
               {isActive && (
                 <motion.span
                   layoutId="activeCategoryIndicator"
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-gold via-gold-soft to-gold shadow-[0_4px_15px_rgba(212,175,55,0.3)] -z-10"
+                  className="absolute inset-0 rounded-full bg-white shadow-[0_4px_15px_rgba(0,0,0,0.1)] -z-10"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
