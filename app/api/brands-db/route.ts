@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbConnection, initializeDatabase } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     await initializeDatabase();
@@ -47,11 +49,11 @@ export async function POST(request: NextRequest) {
     const db = await getDbConnection();
     
     const body = await request.json();
-    const { name, description, status, banner_image } = body;
+    const { name, description, status, banner_image, category_id } = body;
     
     const [result] = await db.query(
-      'INSERT INTO brands (name, description, status, banner_image) VALUES (?, ?, ?, ?)',
-      [name, description, status || 'Active', banner_image || null]
+      'INSERT INTO brands (name, description, status, banner_image, category_id) VALUES (?, ?, ?, ?, ?)',
+      [name, description, status || 'Active', banner_image || null, category_id ? Number(category_id) : null]
     );
     
     return NextResponse.json({ 
@@ -74,11 +76,11 @@ export async function PUT(request: NextRequest) {
     const db = await getDbConnection();
     
     const body = await request.json();
-    const { id, name, description, status, banner_image } = body;
+    const { id, name, description, status, banner_image, category_id } = body;
     
     await db.query(
-      'UPDATE brands SET name = ?, description = ?, status = ?, banner_image = ? WHERE id = ?',
-      [name, description, status, banner_image || null, id]
+      'UPDATE brands SET name = ?, description = ?, status = ?, banner_image = ?, category_id = ? WHERE id = ?',
+      [name, description, status, banner_image || null, category_id ? Number(category_id) : null, id]
     );
     
     return NextResponse.json({ 

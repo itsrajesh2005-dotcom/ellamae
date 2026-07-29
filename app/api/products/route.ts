@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PHP_ENDPOINTS = [
-  process.env.PHP_CATEGORIES_API,
-  'http://localhost/luxury-backend/manage-categories.php',
+  process.env.PHP_PRODUCTS_API,
+  'http://localhost/luxury-backend/manage-gifts.php',
 ].filter(Boolean) as string[];
 
 async function fetchFromPhp(queryString: string, options?: RequestInit) {
@@ -25,7 +25,7 @@ async function fetchFromPhp(queryString: string, options?: RequestInit) {
     }
   }
 
-  throw lastError || new Error('Failed to connect to PHP categories backend');
+  throw lastError || new Error('Failed to connect to PHP products backend');
 }
 
 export async function GET(request: NextRequest) {
@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in GET /api/categories (PHP proxy):', error);
+    console.error('Error in GET /api/products (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to communicate with PHP categories backend' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP products backend' },
       { status: 500 }
     );
   }
@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in POST /api/categories (PHP proxy):', error);
+    console.error('Error in POST /api/products (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to communicate with PHP categories backend' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP products backend' },
       { status: 500 }
     );
   }
@@ -81,9 +81,9 @@ export async function PUT(request: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in PUT /api/categories (PHP proxy):', error);
+    console.error('Error in PUT /api/products (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to communicate with PHP categories backend' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP products backend' },
       { status: 500 }
     );
   }
@@ -103,11 +103,10 @@ export async function DELETE(request: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in DELETE /api/categories (PHP proxy):', error);
+    console.error('Error in DELETE /api/products (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to communicate with PHP categories backend' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP products backend' },
       { status: 500 }
     );
   }
 }
-

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, Upload, FileText, Image as ImageIcon, CheckCircle, X } from 'lucide-react';
 
-export default function GiftsManagement() {
+export default function ProductsManagement() {
   const [gifts, setGifts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,23 +19,24 @@ export default function GiftsManagement() {
   // Form states for creating a new gift hampering product item
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newCategoryId, setNewCategoryId] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newStacks, setNewStacks] = useState('0');
   const [newStatus, setNewStatus] = useState('Active');
   const [newImageStrings, setNewImageStrings] = useState<string[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
+  const [newBrandId, setNewBrandId] = useState('');
 
   // Edit form properties states
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editCategoryId, setEditCategoryId] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editStacks, setEditStacks] = useState('0');
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
+  const [editBrandId, setEditBrandId] = useState('');
 
-  const GIFTS_API = '/api/gifts-db';
-  const CATEGORIES_API = '/api/categories-db';
+  const GIFTS_API = '/api/products-db';
+  const CATEGORIES_API = '/api/categories-db?status=all';
 
   // 1. DYNAMIC CATEGORIES RETRIEVAL HOOK
   const fetchLiveCategories = async () => {
@@ -44,16 +45,25 @@ export default function GiftsManagement() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setCategories(data);
-        if (data.length > 0) {
-          setNewCategoryId(String(data[0].id));
-        }
       }
     } catch (err) {
       console.error("Failed parsing relational parent categories:", err);
     }
   };
 
-  // 2. READ / SEARCH GIFTS WITH BACKEND INTEGRATION 
+  const fetchLiveBrands = async () => {
+    try {
+      const res = await fetch('/api/brands-db?status=all');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setBrands(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch brands in products tab:", err);
+    }
+  };
+
+  // 2. READ / SEARCH PRODUCTS WITH BACKEND INTEGRATION 
   const fetchGiftsFromServer = async (search = "") => {
     try {
       let url = `${GIFTS_API}?status=all`;
@@ -72,13 +82,14 @@ export default function GiftsManagement() {
 
   useEffect(() => {
     fetchLiveCategories();
+    fetchLiveBrands();
     fetchGiftsFromServer();
   }, []);
 
   const handleNextSubStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return alert('Please input Product Name');
-    if (!newCategoryId) return alert('A valid category selector choice is mandatory');
+    if (!newBrandId) return alert('A valid brand selector choice is mandatory');
     setActiveSubStep('images');
   };
 
@@ -151,10 +162,11 @@ export default function GiftsManagement() {
   // 3. CREATE GIFT FUNCTION (SAVE & EXIT)
   const handleFinalGiftSubmit = async () => {
     if (!newName.trim()) return alert("Product Title can't be empty");
+    if (!newBrandId) return alert("Please select a brand");
 
     try {
       const payload = {
-        category_id: Number(newCategoryId),
+        brand_id: Number(newBrandId),
         title: newName,
         price: Number(newPrice) || 0,
         stacks: Number(newStacks) || 0,
@@ -177,6 +189,7 @@ export default function GiftsManagement() {
       const result = await response.json();
       if (result.status === 'success') {
         setNewName(''); setNewDescription(''); setNewPrice(''); setNewStacks('0'); setNewImageStrings([]);
+        setNewBrandId('');
         setActiveSubStep('details');
         setShowMasterAddOverlay(false);
         fetchGiftsFromServer(searchTerm);
@@ -193,10 +206,10 @@ export default function GiftsManagement() {
     setSelectedGift(gift);
     setEditName(gift.title);
     setEditDescription(gift.description);
-    setEditCategoryId(String(gift.category_id || (categories.length > 0 ? categories[0].id : '1')));
     setEditPrice(String(gift.price));
     setEditStacks(String(gift.stacks !== undefined && gift.stacks !== null ? gift.stacks : (gift.stack !== undefined ? gift.stack : 0)));
     setEditStatus(gift.status);
+    setEditBrandId(gift.brand_id ? String(gift.brand_id) : "");
     const parsedImages = (() => {
       if (Array.isArray(gift.images) && gift.images.length > 0) return gift.images.filter(Boolean);
       if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {
@@ -215,11 +228,12 @@ export default function GiftsManagement() {
   const handleUpdateGiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedGift) return;
+    if (!editBrandId) return alert('Please select a brand');
 
     try {
       const payload = {
         id: selectedGift.id,
-        category_id: Number(editCategoryId) || (categories.length > 0 ? Number(categories[0].id) : 1),
+        brand_id: Number(editBrandId),
         title: editName,
         price: Number(editPrice) || 0,
         stacks: Number(editStacks) || 0,
@@ -286,15 +300,15 @@ export default function GiftsManagement() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#2A0812] font-serif">Gifts</h1>
-            <p className="text-sm text-[#d4af37]/80 mt-1.5 tracking-wide">Manage luxury gift items synced live with the server</p>
+            <h1 className="text-3xl font-bold tracking-tight text-[#2A0812] font-serif">Products</h1>
+            <p className="text-sm text-[#d4af37]/80 mt-1.5 tracking-wide">Manage luxury product items synced live with the server</p>
           </div>
           <button 
             onClick={() => { setActiveSubStep('details'); setShowMasterAddOverlay(true); }}
             className="flex items-center gap-2 bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white px-6 py-3 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-[#2A0812]/30 transition-all duration-300 border border-[#d4af37]/20"
           >
             <Plus size={16} className="stroke-[2.5] text-[#d4af37]" />
-            Add Gift
+            Add Product
           </button>
         </div>
 
@@ -327,7 +341,7 @@ export default function GiftsManagement() {
           <Search size={16} className="text-[#d4af37]/60 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search gifts by title, description or ID..."
+            placeholder="Search products by title, description or ID..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -345,6 +359,8 @@ export default function GiftsManagement() {
                 <th className="py-4 px-5 w-28">ID</th>
                 <th className="py-4 px-5 w-20">Image</th>
                 <th className="py-4 px-5">Title</th>
+                <th className="py-4 px-5">Category</th>
+                <th className="py-4 px-5">Brand</th>
                 <th className="py-4 px-5">Description</th>
                 <th className="py-4 px-5">Price</th>
                 <th className="py-4 px-5">Stacks</th>
@@ -355,7 +371,7 @@ export default function GiftsManagement() {
             <tbody className="divide-y divide-[#d4af37]/5 text-xs">
               {gifts.filter((gift) => gift.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} gifts found.</td>
+                  <td colSpan={10} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} products found.</td>
                 </tr>
               ) : (
                 gifts.filter((gift) => gift.status === currentStatusTab).map((gift) => {
@@ -388,6 +404,12 @@ export default function GiftsManagement() {
                         )}
                       </td>
                       <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{gift.title}</td>
+                      <td className="py-3.5 px-5 text-gray-600 text-sm font-medium">
+                        {categories.find(c => c.id == gift.category_id)?.name || <span className="text-gray-400 italic">None</span>}
+                      </td>
+                      <td className="py-3.5 px-5 text-gray-600 text-sm font-medium">
+                        {brands.find(b => b.id == gift.brand_id)?.name || <span className="text-gray-400 italic">None</span>}
+                      </td>
                       <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{gift.description}</td>
                       <td className="py-3.5 px-5 font-semibold text-[#2A0812]">₹{gift.price}</td>
                       <td className="py-3.5 px-5 font-medium text-gray-600">{stackCount}</td>
@@ -458,10 +480,13 @@ export default function GiftsManagement() {
                       <textarea rows={3} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a product description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
                     <div className="mb-5">
-                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category</label>
-                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Brand (Required)</label>
+                      <select value={newBrandId} onChange={(e) => setNewBrandId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
+                        <option value="">Select Brand</option>
+                        {brands.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} ({categories.find(c => c.id == b.category_id)?.name || 'No Category'})
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -596,10 +621,13 @@ export default function GiftsManagement() {
                           <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
                         </div>
                         <div>
-                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category</label>
-                          <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
-                            {categories.map((cat) => (
-                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Brand (Required)</label>
+                          <select value={editBrandId} onChange={(e) => setEditBrandId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
+                            <option value="">Select Brand</option>
+                            {brands.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name} ({categories.find(c => c.id == b.category_id)?.name || 'No Category'})
+                              </option>
                             ))}
                           </select>
                         </div>

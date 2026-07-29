@@ -51,101 +51,41 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
   // Determine text color based on variant and scroll state
   const getTextColor = () => {
-    if (variant === "light") {
-      // Light background page — always use dark text
-      return "text-zinc-900"
-    }
-    if (variant === "hero") {
-      // Dark hero that scrolls into light — white at top, dark when scrolled
-      return scrolled ? "text-zinc-900" : "text-white"
-    }
-    // Default "dark" variant — white at top, use foreground (ivory) when scrolled (dark bg pages)
-    return scrolled ? "text-foreground" : "text-white"
+    return "text-white"
   }
 
   const getLogoColor = () => {
-    if (variant === "light") {
-      return "text-zinc-900 hover:text-[#d4af37]"
-    }
-    if (variant === "hero") {
-      return scrolled 
-        ? "text-zinc-900 hover:text-[#d4af37]" 
-        : "text-white/80 hover:text-white"
-    }
-    return scrolled 
-      ? "text-white hover:text-white/80" 
-      : "text-white/80 hover:text-white"
+    return "text-white/80 hover:text-white"
   }
 
   const getLinkColor = () => {
-    if (variant === "light") {
-      return "text-zinc-800 hover:text-[#d4af37]"
-    }
-    if (variant === "hero") {
-      return scrolled 
-        ? "text-zinc-800 hover:text-[#d4af37]" 
-        : "text-white/80 hover:text-white"
-    }
-    return scrolled 
-      ? "text-white hover:text-white/80" 
-      : "text-white/80 hover:text-white"
+    return "text-white/80 hover:text-white"
   }
 
   const getSocialIconClass = () => {
     const base = "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300"
-    if (variant === "light") {
-      return `${base} border-zinc-200 text-zinc-700 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
-    }
-    if (variant === "hero") {
-      return scrolled
-        ? `${base} border-zinc-200 text-zinc-700 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
-        : `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
-    }
-    return scrolled
-      ? `${base} border-white/15 text-foreground/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
-      : `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+    return `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
   }
 
   const getMobileButtonClass = () => {
     const base = "inline-flex h-10 w-10 items-center justify-center rounded-full border md:hidden transition-all duration-300"
-    if (variant === "light") {
-      return `${base} border-zinc-200 text-zinc-900`
-    }
-    if (variant === "hero") {
-      return scrolled 
-        ? `${base} border-zinc-200 text-zinc-900` 
-        : `${base} border-white/20 text-white`
-    }
-    return scrolled 
-      ? `${base} border-white/15 text-foreground` 
-      : `${base} border-white/20 text-white`
+    return `${base} border-white/20 text-white`
   }
 
   const getGlassStyle = () => {
     if (variant === "light") {
-      return scrolled
-        ? "bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] border-b border-zinc-200/50"
-        : "bg-transparent"
+      return "bg-[#2a0812] border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]"
     }
-    if (variant === "hero") {
-      return scrolled
-        ? "bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] border-b border-zinc-200/50"
-        : "bg-transparent"
-    }
-    return scrolled ? "glass shadow-[0_8px_30px_rgba(180,140,90,0.08)]" : "bg-transparent"
+    return scrolled 
+      ? "bg-[#2a0812]/80 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]" 
+      : "bg-transparent"
   }
 
   const getMobileMenuBg = () => {
-    if (variant === "light" || variant === "hero") {
-      return "bg-white/95 backdrop-blur-xl border-t border-zinc-200/50"
-    }
     return "border-t border-gold/15 bg-card/90 backdrop-blur-xl"
   }
 
   const getMobileLinkColor = () => {
-    if (variant === "light" || variant === "hero") {
-      return "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
-    }
     return "text-foreground/80 hover:bg-accent hover:text-foreground"
   }
 

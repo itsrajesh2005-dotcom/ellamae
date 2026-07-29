@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { Gift, Tags, Tag } from 'lucide-react';
-import GiftsTab from './GiftsTab';
+import ProductsTab from './ProductsTab';
 import CategoriesTab from './CategoriesTab';
 import BrandsTab from './BrandsTab';
 
 export default function LuxuryManagementDashboard() {
-  // Navigation active tab controller state - Set 'brands' as the default view
-  const [activeTab, setActiveTab] = useState<'brands' | 'categories' | 'gifts'>('brands');
+  // Navigation active tab controller state - Set 'categories' as the default view
+  const [activeTab, setActiveTab] = useState<'brands' | 'categories' | 'products'>('categories');
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-[#faf6f0] via-[#f5f0e8] to-[#faf6f0] text-black font-sans">
@@ -38,26 +38,7 @@ export default function LuxuryManagementDashboard() {
           </div>          
           {/* SIDEMENU BUTTON ROUTERS */}
           <nav className="px-4 pt-6 space-y-2">
-            {/* BRANDS TAB (FIRST / DEFAULT ITEM) */}
-            <button 
-              onClick={() => setActiveTab('brands')}
-              className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 relative overflow-hidden group ${
-                activeTab === 'brands' 
-                  ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white shadow-lg shadow-[#2A0812]/20' 
-                  : 'text-gray-600 hover:bg-[#d4af37]/10 hover:text-[#2A0812]'
-              }`}
-            >
-              {activeTab === 'brands' && (
-                <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent opacity-50" />
-              )}
-              <Tag size={18} className={`stroke-[2] relative z-10 ${activeTab === 'brands' ? 'text-[#d4af37]' : ''}`} />
-              <span className="relative z-10">Brands</span>
-              {activeTab === 'brands' && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#d4af37] shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
-              )}
-            </button>
-
-            {/* CATEGORIES TAB */}
+            {/* CATEGORIES TAB (FIRST / DEFAULT ITEM) */}
             <button 
               onClick={() => setActiveTab('categories')}
               className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 relative overflow-hidden group ${
@@ -76,21 +57,40 @@ export default function LuxuryManagementDashboard() {
               )}
             </button>
 
-            {/* GIFTS TAB */}
+            {/* BRANDS TAB */}
             <button 
-              onClick={() => setActiveTab('gifts')}
+              onClick={() => setActiveTab('brands')}
               className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 relative overflow-hidden group ${
-                activeTab === 'gifts' 
+                activeTab === 'brands' 
                   ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white shadow-lg shadow-[#2A0812]/20' 
                   : 'text-gray-600 hover:bg-[#d4af37]/10 hover:text-[#2A0812]'
               }`}
             >
-              {activeTab === 'gifts' && (
+              {activeTab === 'brands' && (
                 <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent opacity-50" />
               )}
-              <Gift size={18} className={`stroke-[2] relative z-10 ${activeTab === 'gifts' ? 'text-[#d4af37]' : ''}`} />
-              <span className="relative z-10">Gifts</span>
-              {activeTab === 'gifts' && (
+              <Tag size={18} className={`stroke-[2] relative z-10 ${activeTab === 'brands' ? 'text-[#d4af37]' : ''}`} />
+              <span className="relative z-10">Brands</span>
+              {activeTab === 'brands' && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#d4af37] shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
+              )}
+            </button>
+
+            {/* PRODUCTS TAB */}
+            <button 
+              onClick={() => setActiveTab('products')}
+              className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 relative overflow-hidden group ${
+                activeTab === 'products' 
+                  ? 'bg-gradient-to-r from-[#2A0812] to-[#4a1830] text-white shadow-lg shadow-[#2A0812]/20' 
+                  : 'text-gray-600 hover:bg-[#d4af37]/10 hover:text-[#2A0812]'
+              }`}
+            >
+              {activeTab === 'products' && (
+                <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent opacity-50" />
+              )}
+              <Gift size={18} className={`stroke-[2] relative z-10 ${activeTab === 'products' ? 'text-[#d4af37]' : ''}`} />
+              <span className="relative z-10">Products</span>
+              {activeTab === 'products' && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#d4af37] shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
               )}
             </button>
@@ -107,7 +107,7 @@ export default function LuxuryManagementDashboard() {
       <main className="flex-1 p-8 overflow-y-auto">
         {activeTab === 'brands' && <BrandsTab />}
         {activeTab === 'categories' && <CategoriesTab />}
-        {activeTab === 'gifts' && <GiftsTab />}
+        {activeTab === 'products' && <ProductsTab />}
       </main>
 
     </div>

@@ -13,8 +13,13 @@
         exit();
     }
 
+    if (strpos($uri, 'manage-products.php') !== false) {
+        require __DIR__ . '/luxury-backend/manage-products.php';
+        exit();
+    }
+
     if (strpos($uri, 'manage-gifts.php') !== false) {
-        require __DIR__ . '/luxury-backend/manage-gifts.php';
+        require __DIR__ . '/luxury-backend/manage-products.php';
         exit();
     }
 

@@ -118,59 +118,60 @@ try {
         throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment. Please install php-mysql or use XAMPP PHP.");
     }
     /*---------DATABASE CONNECTION---------*/
-    $conn = new mysqli("192.168.1.79t", "root", "", "ellamae_db");
+    $conn = new mysqli("localhost", "root", "", "ellamae_db");
 
     if ($conn->connect_error) {
         throw new Exception("Database Connection Failed: " . $conn->connect_error);
     }
 
     /* ---------------- AUTO-CREATE TABLES IF NOT EXIST ---------------- */
-    // 1. Create the main gifts table
-    $createGiftsTable = "CREATE TABLE IF NOT EXISTS gifts (
+    // 1. Create the main products table
+    $createProductsTable = "CREATE TABLE IF NOT EXISTS products (
         id INT AUTO_INCREMENT PRIMARY KEY,
         category_id INT NOT NULL,
         title VARCHAR(255) NOT NULL,
         price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
         stacks INT NOT NULL DEFAULT 0,
         description TEXT,
-        status VARCHAR(50) DEFAULT 'Active'
+        status VARCHAR(50) DEFAULT 'Active',
+        image_path LONGTEXT
     ) ENGINE=InnoDB;";
     
-    if (!$conn->query($createGiftsTable)) {
-        throw new Exception("Gifts table creation failed: " . $conn->error);
+    if (!$conn->query($createProductsTable)) {
+        throw new Exception("Products table creation failed: " . $conn->error);
     }
 
-    $checkCol = $conn->query("SHOW COLUMNS FROM gifts LIKE 'stacks'");
+    $checkCol = $conn->query("SHOW COLUMNS FROM products LIKE 'stacks'");
     if ($checkCol && $checkCol->num_rows == 0) {
-        $conn->query("ALTER TABLE gifts ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price");
+        $conn->query("ALTER TABLE products ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price");
     } else {
-        $conn->query("ALTER TABLE gifts MODIFY COLUMN stacks INT NOT NULL DEFAULT 0");
+        $conn->query("ALTER TABLE products MODIFY COLUMN stacks INT NOT NULL DEFAULT 0");
     }
 
-    $checkImgCol = $conn->query("SHOW COLUMNS FROM gifts LIKE 'image_path'");
+    $checkImgCol = $conn->query("SHOW COLUMNS FROM products LIKE 'image_path'");
     if ($checkImgCol && $checkImgCol->num_rows == 0) {
-        $conn->query("ALTER TABLE gifts ADD COLUMN image_path LONGTEXT AFTER status");
+        $conn->query("ALTER TABLE products ADD COLUMN image_path LONGTEXT AFTER status");
     } else {
-        $conn->query("ALTER TABLE gifts MODIFY COLUMN image_path LONGTEXT");
+        $conn->query("ALTER TABLE products MODIFY COLUMN image_path LONGTEXT");
     }
 
-    // 2. Create the separate gift_images table for decoupled image storage
-    $createGiftImagesTable = "CREATE TABLE IF NOT EXISTS gift_images (
+    // 2. Create the separate product_images table for decoupled image storage
+    $createProductImagesTable = "CREATE TABLE IF NOT EXISTS product_images (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        gift_id INT NOT NULL,
+        product_id INT NOT NULL,
         image_path LONGTEXT NOT NULL,
-        FOREIGN KEY (gift_id) REFERENCES gifts(id) ON DELETE CASCADE
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;";
     
-    if (!$conn->query($createGiftImagesTable)) {
-        throw new Exception("Gift images table creation failed: " . $conn->error);
+    if (!$conn->query($createProductImagesTable)) {
+        throw new Exception("Product images table creation failed: " . $conn->error);
     }
 
-    // Ensure gift_images.image_path is LONGTEXT (4GB capacity) in existing tables
-    $conn->query("ALTER TABLE gift_images MODIFY COLUMN image_path LONGTEXT NOT NULL");
+    // Ensure product_images.image_path is LONGTEXT (4GB capacity) in existing tables
+    $conn->query("ALTER TABLE product_images MODIFY COLUMN image_path LONGTEXT NOT NULL");
 
 
-    /* ---------------- GET / SEARCH GIFTS ---------------- */
+    /* ---------------- GET / SEARCH PRODUCTS ---------------- */
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
         $search = "";
 
@@ -189,33 +190,33 @@ try {
         $types = "";
 
         if ($statusParam !== 'all') {
-            $where[] = "g.status = ?";
+            $where[] = "p.status = ?";
             $params[] = $statusParam;
             $types .= "s";
         }
 
         if ($categoryIdParam > 0) {
-            $where[] = "g.category_id = ?";
+            $where[] = "p.category_id = ?";
             $params[] = $categoryIdParam;
             $types .= "i";
         }
 
         if ($search != "") {
-            $where[] = "(g.title LIKE ? OR g.description LIKE ? OR g.id = ?)";
+            $where[] = "(p.title LIKE ? OR p.description LIKE ? OR p.id = ?)";
             $params[] = "%" . $search . "%";
             $params[] = "%" . $search . "%";
             $params[] = is_numeric($searchId) ? intval($searchId) : -1;
             $types .= "ssi";
         }
 
-        $sql = "SELECT g.id, g.category_id, g.title, g.price, g.stacks, g.description, g.status, g.image_path AS main_image, gi.image_path AS rel_image_path 
-                FROM gifts g 
-                LEFT JOIN gift_images gi ON g.id = gi.gift_id";
+        $sql = "SELECT p.id, p.category_id, p.title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path 
+                FROM products p 
+                LEFT JOIN product_images pi ON p.id = pi.product_id";
 
         if (count($where) > 0) {
             $sql .= " WHERE " . implode(" AND ", $where);
         }
-        $sql .= " ORDER BY g.id DESC";
+        $sql .= " ORDER BY p.id DESC";
 
         $stmt = $conn->prepare($sql);
         if ($stmt) {
@@ -225,11 +226,11 @@ try {
             $stmt->execute();
             $result = $stmt->get_result();
             
-            $gifts = [];
+            $products = [];
             while ($row = $result->fetch_assoc()) {
-                $gift_id = $row['id'];
-                if (!isset($gifts[$gift_id])) {
-                    $gifts[$gift_id] = [
+                $product_id = $row['id'];
+                if (!isset($products[$product_id])) {
+                    $products[$product_id] = [
                         "id" => intval($row['id']),
                         "category_id" => intval($row['category_id']),
                         "title" => $row['title'],
@@ -241,15 +242,15 @@ try {
                         "images" => []
                     ];
                     if (!empty($row['main_image'])) {
-                        $gifts[$gift_id]['images'][] = $row['main_image'];
+                        $products[$product_id]['images'][] = $row['main_image'];
                     }
                 }
-                if (!empty($row['rel_image_path']) && !in_array($row['rel_image_path'], $gifts[$gift_id]['images'])) {
-                    $gifts[$gift_id]['images'][] = $row['rel_image_path'];
+                if (!empty($row['rel_image_path']) && !in_array($row['rel_image_path'], $products[$product_id]['images'])) {
+                    $products[$product_id]['images'][] = $row['rel_image_path'];
                 }
             }
 
-            echo json_encode(array_values($gifts));
+            echo json_encode(array_values($products));
             $stmt->close();
         } else {
             throw new Exception("Failed to prepare select query: " . $conn->error);
@@ -279,20 +280,20 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO gifts (category_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO products (category_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
             $stmt->bind_param("isdisss", $category_id, $title, $price, $stacks, $description, $status, $primaryImg);
 
             if ($stmt->execute()) {
-                $gift_id = $conn->insert_id;
+                $product_id = $conn->insert_id;
                 $stmt->close();
 
                 // Save multiple images into relational table
                 if (is_array($images) && count($images) > 0) {
-                    $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
+                    $stmt2 = $conn->prepare("INSERT INTO product_images (product_id, image_path) VALUES (?, ?)");
                     if ($stmt2) {
                         $imgVal = "";
-                        $stmt2->bind_param("is", $gift_id, $imgVal);
+                        $stmt2->bind_param("is", $product_id, $imgVal);
                         foreach ($images as $img) {
                             if (!empty($img)) {
                                 $imgVal = $img;
@@ -303,9 +304,9 @@ try {
                     }
                 }
 
-                echo json_encode(["status" => "success", "message" => "Gift Added Successfully", "id" => $gift_id]);
+                echo json_encode(["status" => "success", "message" => "Product Added Successfully", "id" => $product_id]);
             } else {
-                echo json_encode(["status" => "error", "message" => "Error adding gift: " . $stmt->error]);
+                echo json_encode(["status" => "error", "message" => "Error adding product: " . $stmt->error]);
                 $stmt->close();
             }
         } else {
@@ -328,7 +329,7 @@ try {
 
         // Fallback: If category_id is missing or 0, resolve from existing database record
         if ($category_id <= 0 && $id > 0) {
-            $catQuery = $conn->query("SELECT category_id FROM gifts WHERE id = $id");
+            $catQuery = $conn->query("SELECT category_id FROM products WHERE id = $id");
             if ($catQuery && $rowCat = $catQuery->fetch_assoc()) {
                 $category_id = intval($rowCat['category_id']);
             }
@@ -344,7 +345,7 @@ try {
 
         if ($hasNewImages) {
             $primaryImg = $images[0];
-            $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE products SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
             if ($stmt) {
                 $stmt->bind_param("isdisssi", $category_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
                 $stmt->execute();
@@ -353,8 +354,8 @@ try {
                 throw new Exception("Failed to prepare update query with images: " . $conn->error);
             }
 
-            // Delete old image records for this gift
-            $stmtDel = $conn->prepare("DELETE FROM gift_images WHERE gift_id = ?");
+            // Delete old image records for this product
+            $stmtDel = $conn->prepare("DELETE FROM product_images WHERE product_id = ?");
             if ($stmtDel) {
                 $stmtDel->bind_param("i", $id);
                 $stmtDel->execute();
@@ -362,7 +363,7 @@ try {
             }
 
             // Insert updated images array into relational table
-            $stmt2 = $conn->prepare("INSERT INTO gift_images (gift_id, image_path) VALUES (?, ?)");
+            $stmt2 = $conn->prepare("INSERT INTO product_images (product_id, image_path) VALUES (?, ?)");
             if ($stmt2) {
                 $imgVal = "";
                 $stmt2->bind_param("is", $id, $imgVal);
@@ -376,7 +377,7 @@ try {
             }
         } else {
             // Update fields without wiping out existing images
-            $stmt = $conn->prepare("UPDATE gifts SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE products SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
             if ($stmt) {
                 $stmt->bind_param("isdissi", $category_id, $title, $price, $stacks, $description, $status, $id);
                 $stmt->execute();
@@ -386,7 +387,7 @@ try {
             }
         }
 
-        echo json_encode(["status" => "success", "message" => "Gift Updated Successfully"]);
+        echo json_encode(["status" => "success", "message" => "Product Updated Successfully"]);
         $conn->close();
         exit();
     }
@@ -402,14 +403,14 @@ try {
         }
 
         // Explicitly deletes only the specific single row target matching the assigned numeric ID
-        $stmt = $conn->prepare("DELETE FROM gifts WHERE id = ?");
+        $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
         if ($stmt) {
             $stmt->bind_param("i", $id);
 
             if ($stmt->execute()) {
-                echo json_encode(["status" => "success", "message" => "Gift Deleted Successfully"]);
+                echo json_encode(["status" => "success", "message" => "Product Deleted Successfully"]);
             } else {
-                echo json_encode(["status" => "error", "message" => "Error deleting gift: " . $stmt->error]);
+                echo json_encode(["status" => "error", "message" => "Error deleting product: " . $stmt->error]);
             }
             $stmt->close();
         } else {

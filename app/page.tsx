@@ -2,7 +2,7 @@ import { Loader } from "@/components/loader"
 import { Navbar } from "@/components/navbar"
 import { Hero } from "@/components/hero"
 import { AboutUs } from "@/components/about-us"
-import { CategoriesMosaic } from "@/components/categories-mosaic"
+import { Categories } from "@/components/categories"
 import { FeaturedCollections } from "@/components/featured-collections"
 import { WhyChoose } from "@/components/why-choose"
 import { HowItWorks } from "@/components/how-it-works"
@@ -17,7 +17,7 @@ export default function Home() {
       <main>
         <Hero />
         <AboutUs />
-        <CategoriesMosaic />
+        <Categories />
         <FeaturedCollections />
         <WhyChoose />
         <HowItWorks />

@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-
+import {NextRequest, NextResponse} from "next/server";
 const PHP_ENDPOINTS = [
-  process.env.PHP_GIFTS_API,
-  'http://192.168.1.79/luxury-backend/manage-gifts.php',
+  process.env.PHP_BRANDS_API,
+  'http://localhost/luxury-backend/manage-brands.php',
 ].filter(Boolean) as string[];
 
 async function fetchFromPhp(queryString: string, options?: RequestInit) {
@@ -19,13 +18,13 @@ async function fetchFromPhp(queryString: string, options?: RequestInit) {
       if (res.ok) {
         return res;
       }
-      lastError = new Error(`PHP endpoint ${url} responded with status ${res.status}`);
-    } catch (err: any) {
-      lastError = err;
+        lastError = new Error(`PHP endpoint ${url} responded with status ${res.status}`);
+        } catch (err: any) {
+        lastError = err;
+      }
     }
-  }
 
-  throw lastError || new Error('Failed to connect to PHP gifts backend');
+  throw lastError || new Error('Failed to connect to PHP brands backend');
 }
 
 export async function GET(request: NextRequest) {
@@ -35,9 +34,9 @@ export async function GET(request: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in GET /api/gifts (PHP proxy):', error);
+    console.error('Error in GET /api/brands (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to communicate with PHP gifts backend' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP brands backend' },
       { status: 500 }
     );
   }
@@ -56,9 +55,9 @@ export async function POST(request: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in POST /api/gifts (PHP proxy):', error);
+    console.error('Error in POST /api/brands (PHP proxy):', error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to communicate with PHP gifts backend' },
+      { status: 'error', message: error.message || 'Failed to communicate with PHP brands backend' },
       { status: 500 }
     );
   }

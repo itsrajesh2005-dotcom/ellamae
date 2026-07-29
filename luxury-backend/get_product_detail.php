@@ -63,12 +63,12 @@ try {
     $conn = new mysqli(db_config('DB_HOST', 'localhost'), db_config('DB_USER', 'root'), db_config('DB_PASS', ''), db_config('DB_NAME', 'ellamae_db'));
     if ($conn->connect_error) throw new Exception('Database connection failed');
 
-    $sql = "SELECT g.id, g.title, g.description, g.price, g.stacks, g.status, c.name AS category_name, gi.image_path
-            FROM gifts g
-            LEFT JOIN category c ON c.id = g.category_id
-            LEFT JOIN gift_images gi ON gi.gift_id = g.id
-            WHERE g.id = ?
-            ORDER BY gi.id ASC";
+    $sql = "SELECT p.id, p.title, p.description, p.price, p.stacks, p.status, c.name AS category_name, pi.image_path
+            FROM products p
+            LEFT JOIN category c ON c.id = p.category_id
+            LEFT JOIN product_images pi ON pi.product_id = p.id
+            WHERE p.id = ?
+            ORDER BY pi.id ASC";
     $stmt = $conn->prepare($sql);
     if (!$stmt) throw new Exception('Unable to prepare product query');
     $stmt->bind_param('i', $id);

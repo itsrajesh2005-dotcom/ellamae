@@ -33,12 +33,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     await initializeDatabase();
     const db = await getDbConnection();
     const [rows] = await db.query(
-      `SELECT g.id, g.title, g.description, g.price, g.stacks, g.status, c.name AS category_name, gi.image_path
-       FROM gifts g
-       LEFT JOIN category c ON c.id = g.category_id
-       LEFT JOIN gift_images gi ON gi.gift_id = g.id
-       WHERE g.id = ?
-       ORDER BY gi.id ASC`,
+      `SELECT p.id, p.title, p.description, p.price, p.stacks, p.status, c.name AS category_name, pi.image_path
+       FROM products p
+       LEFT JOIN category c ON c.id = p.category_id
+       LEFT JOIN product_images pi ON pi.product_id = p.id
+       WHERE p.id = ?
+       ORDER BY pi.id ASC`,
       [productId]
     ) as [Array<Record<string, any>>, unknown];
 

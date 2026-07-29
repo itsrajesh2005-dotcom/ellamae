@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbConnection, initializeDatabase } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     await initializeDatabase();
@@ -10,16 +12,19 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     
-    let query = 'SELECT * FROM category';
+    let query = `
+      SELECT c.* 
+      FROM category c
+    `;
     const params: any[] = [];
     
     const conditions: string[] = [];
     if (status && status !== 'all') {
-      conditions.push('status = ?');
+      conditions.push('c.status = ?');
       params.push(status);
     }
     if (search) {
-      conditions.push('(name LIKE ? OR description LIKE ?)');
+      conditions.push('(c.name LIKE ? OR c.description LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
     }
     

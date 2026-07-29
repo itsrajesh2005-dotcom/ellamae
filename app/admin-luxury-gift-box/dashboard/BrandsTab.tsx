@@ -7,6 +7,7 @@ const API_URL = "/api/brands-db";
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentStatusTab, setCurrentStatusTab] = useState<'Active' | 'Inactive'>('Active');
   
@@ -21,17 +22,23 @@ export default function BrandsTab() {
   const [newDescription, setNewDescription] = useState('');
   const [newStatus, setNewStatus] = useState('Active');
   const [newImageString, setNewImageString] = useState(''); 
+  const [newCategoryId, setNewCategoryId] = useState('');
 
   // Form states for viewing/editing inside overlay
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageString, setEditImageString] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
 
   // 1. READ & DYNAMIC SEARCH PIPELINE
-  const fetchBrands = async () => {
+  const fetchBrands = async (search = "") => {
   try {
-    const response = await fetch('/api/brands-db?status=all');
+    let url = '/api/brands-db?status=all';
+    if (search) {
+      url += `&search=${encodeURIComponent(search)}`;
+    }
+    const response = await fetch(url);
     
     // Check if the response is JSON
     const contentType = response.headers.get("content-type");
@@ -51,8 +58,21 @@ export default function BrandsTab() {
   }
 };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories-db?status=all');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCategories(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch categories in brands tab:", err);
+    }
+  };
+
   useEffect(() => {
     fetchBrands();
+    fetchCategories();
   }, []);
 
   const handleNextSubStep = (e: React.FormEvent) => {
@@ -121,7 +141,8 @@ export default function BrandsTab() {
       name: newName,
       description: newDescription,
       status: newStatus,
-      banner_image: newImageString
+      banner_image: newImageString,
+      category_id: Number(newCategoryId) || null
     };
 
     try {
@@ -145,6 +166,7 @@ export default function BrandsTab() {
           setNewDescription('');
           setNewStatus('Active');
           setNewImageString('');
+          setNewCategoryId('');
           setShowMasterAddOverlay(false);
 
           fetchBrands(); // Refresh list after save
@@ -171,6 +193,7 @@ export default function BrandsTab() {
     setEditDescription(brand.description);
     setEditStatus(brand.status);
     setEditImageString(brand.banner_image || "");
+    setEditCategoryId(brand.category_id ? String(brand.category_id) : "");
     setShowPreviewModal(true);
   };
 
@@ -185,7 +208,8 @@ export default function BrandsTab() {
         name: editName,
         description: editDescription,
         status: editStatus,
-        banner_image: editImageString
+        banner_image: editImageString,
+        category_id: Number(editCategoryId) || null
       };
       const response = await fetch(API_URL, {
         method: "PUT",
@@ -277,6 +301,7 @@ export default function BrandsTab() {
                 <th className="py-4 px-5 w-12">ID</th>
                 <th className="py-4 px-5 w-24">Banner</th>
                 <th className="py-4 px-5">Brand Name</th>
+                <th className="py-4 px-5">Category</th>
                 <th className="py-4 px-5">Description</th>
                 <th className="py-4 px-5">Status</th>
                 <th className="py-4 px-5 text-center">Actions</th>
@@ -285,7 +310,7 @@ export default function BrandsTab() {
             <tbody className="divide-y divide-[#d4af37]/5 text-xs">
               {brands.filter((brand) => brand.status === currentStatusTab).length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} brands found.</td>
+                  <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} brands found.</td>
                 </tr>
               ) : (
                 brands
@@ -305,6 +330,9 @@ export default function BrandsTab() {
                       )}
                     </td>
                     <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{brand.name}</td>
+                    <td className="py-3.5 px-5 text-gray-600 text-sm font-medium">
+                      {categories.find(c => c.id === brand.category_id)?.name || <span className="text-gray-400 italic">None</span>}
+                    </td>
                     <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{brand.description}</td>
                     <td className="py-3.5 px-5">
                       <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold border ${
@@ -359,7 +387,6 @@ export default function BrandsTab() {
                     <span className="font-semibold text-sm text-[#2A0812]">Banner</span>
                   </div>
                 </div>
-
                 {activeSubStep === 'details' && (
                   <form onSubmit={handleNextSubStep} className="text-black text-sm">
                     <div className="mb-5">
@@ -369,6 +396,15 @@ export default function BrandsTab() {
                     <div className="mb-5">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Description</label>
                       <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a short brand description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
+                    </div>
+                    <div className="mb-5">
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
+                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
+                        <option value="">Select Category (Optional)</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="mb-8">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Initial Status</label>
@@ -470,6 +506,16 @@ export default function BrandsTab() {
                         <textarea rows={5} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
                       </div>
 
+                      <div className="mb-5">
+                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
+                        <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
+                          <option value="">Select Category (Optional)</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
                       <div className="mb-8">
                         <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Status</label>
                         <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
@@ -484,7 +530,6 @@ export default function BrandsTab() {
                       </div>
                     </form>
                   </div>
-
                 </div>
               </div>
             </div>
