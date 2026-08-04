@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PHP_ENDPOINTS = [
   process.env.PHP_CATEGORIES_API,
-  'http://localhost/luxury-backend/manage-categories.php',
 ].filter(Boolean) as string[];
 
 async function fetchFromPhp(queryString: string, options?: RequestInit) {

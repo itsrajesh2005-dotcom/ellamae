@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, CheckCircle, Upload, Image as ImageIcon, Layers, X } from 'lucide-react';
-const API_URL = "/api/categories-db";
+const API_URL = "/api/categories";
 
 export default function CategoriesManagement() {
   const [categories, setCategories] = useState<any[]>([]);

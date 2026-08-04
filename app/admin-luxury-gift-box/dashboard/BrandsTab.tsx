@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, CheckCircle, Upload, Image as ImageIcon, Layers, X } from 'lucide-react';
 
-const API_URL = "/api/brands-db";
+const API_URL = "/api/brands";
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState<any[]>([]);

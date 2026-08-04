@@ -35,8 +35,8 @@ export default function ProductsManagement() {
   const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
   const [editBrandId, setEditBrandId] = useState('');
 
-  const GIFTS_API = '/api/products-db';
-  const CATEGORIES_API = '/api/categories-db?status=all';
+  const GIFTS_API = '/api/products';
+  const CATEGORIES_API = '/api/categories?status=all';
 
   // 1. DYNAMIC CATEGORIES RETRIEVAL HOOK
   const fetchLiveCategories = async () => {
@@ -53,7 +53,7 @@ export default function ProductsManagement() {
 
   const fetchLiveBrands = async () => {
     try {
-      const res = await fetch('/api/brands-db?status=all');
+      const res = await fetch('/api/brands?status=all');
       const data = await res.json();
       if (Array.isArray(data)) {
         setBrands(data);
