@@ -8,6 +8,7 @@ export default function ProductsManagement() {
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentStatusTab, setCurrentStatusTab] = useState<'Active' | 'Inactive'>('Active');
+  const [loading, setLoading] = useState(true);
   
   // Dynamic Master Overlay Form Navigation Setup
   const [showMasterAddOverlay, setShowMasterAddOverlay] = useState(false);
@@ -15,6 +16,21 @@ export default function ProductsManagement() {
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState<any | null>(null);
+
+  const normalizeProductStatus = (status: any) => {
+    if (status === undefined || status === null || status === '') return 'Active';
+    const normalized = String(status).trim().toLowerCase();
+    if (['active', '1', 'true', 'yes', 'enabled'].includes(normalized)) return 'Active';
+    return 'Inactive';
+  };
+
+  const getRawProducts = (data: any) => {
+    const rawProducts = Array.isArray(data)
+      ? data
+      : data?.products ?? data?.data ?? data?.results ?? [];
+    console.log('UI Received Products:', rawProducts);
+    return Array.isArray(rawProducts) ? rawProducts : [];
+  };
 
   // Form states for creating a new gift hampering product item
   const [newName, setNewName] = useState('');
@@ -65,18 +81,55 @@ export default function ProductsManagement() {
 
   // 2. READ / SEARCH PRODUCTS WITH BACKEND INTEGRATION 
   const fetchGiftsFromServer = async (search = "") => {
+    setLoading(true);
     try {
       let url = `${GIFTS_API}?status=all`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
       }
       const response = await fetch(url);
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setGifts(data);
-      }
+      const json = await response.json();
+      const productData = Array.isArray(json) ? json : json?.products ?? json?.data ?? json?.results ?? [];
+      const normalizedProducts = productData.map((item: any) => {
+        const id = Number(item.id ?? item.product_id ?? item.gift_id ?? 0);
+        const title = String(item.title ?? item.name ?? item.product_name ?? item.gift_name ?? '');
+        const price = Number(item.price ?? item.product_price ?? item.gift_price ?? 0);
+        const category_id = Number(item.category_id ?? item.cat_id ?? 0);
+        const status = normalizeProductStatus(item.status);
+        const images = (() => {
+          if (Array.isArray(item.images)) return item.images.filter(Boolean);
+          if (typeof item.images === 'string' && item.images.trim().startsWith('[')) {
+            try {
+              const parsed = JSON.parse(item.images);
+              if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            } catch {
+              // ignore invalid JSON
+            }
+          }
+          if (typeof item.images === 'string' && item.images) return [item.images];
+          if (typeof item.main_image === 'string' && item.main_image) return [item.main_image];
+          if (typeof item.image_path === 'string' && item.image_path) return [item.image_path];
+          if (typeof item.image === 'string' && item.image) return [item.image];
+          return [];
+        })();
+
+        return {
+          ...item,
+          id,
+          title,
+          price,
+          category_id,
+          status,
+          images,
+          display_id: item.display_id ?? `ELLAMAE${id}`,
+        };
+      });
+      setGifts(normalizedProducts);
     } catch (error) {
       console.error("Backend parsing active protection logs exception:", error);
+      setGifts([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -368,13 +421,13 @@ export default function ProductsManagement() {
                 <th className="py-4 px-5 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#d4af37]/5 text-xs">
-              {gifts.filter((gift) => gift.status === currentStatusTab).length === 0 ? (
+           <tbody className="divide-y divide-[#d4af37]/5 text-xs">
+              {gifts.filter((gift) => normalizeProductStatus(gift.status) === currentStatusTab).length === 0 ? (
                 <tr>
                   <td colSpan={10} className="text-center py-16 text-gray-400 text-sm">No {currentStatusTab.toLowerCase()} products found.</td>
                 </tr>
               ) : (
-                gifts.filter((gift) => gift.status === currentStatusTab).map((gift) => {
+                gifts.filter((gift) => normalizeProductStatus(gift.status) === currentStatusTab).map((gift) => {
                   const images = (() => {
                     if (Array.isArray(gift.images) && gift.images.length > 0) return gift.images.filter(Boolean);
                     if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {

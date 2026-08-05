@@ -1,5 +1,16 @@
 // PHP API integration and response normalization. This file intentionally has no UI concerns.
-const PHP_BACKEND_URL = (process.env.NEXT_PUBLIC_PHP_BACKEND_URL || 'http://localhost/luxury-backend').replace(/\/$/, '');
+// Resolve backend dynamically: prefer NEXT_PUBLIC_PHP_BACKEND_URL; otherwise derive from window.location
+const getPhpBackendUrl = () => {
+  if (process.env.NEXT_PUBLIC_PHP_BACKEND_URL) return process.env.NEXT_PUBLIC_PHP_BACKEND_URL.replace(/\/$/, '');
+  if (typeof window !== 'undefined') {
+    // Use same host (hostname only) so requests work when accessed via IP on the local network.
+    return `${window.location.protocol}//${window.location.hostname}/luxury-backend`;
+  }
+  // Server-side without explicit env: leave empty so callers can fall back to Next API proxies instead of hardcoding localhost.
+  return '';
+};
+
+const PHP_BACKEND_URL = getPhpBackendUrl();
 
 export interface Category {
   id: number;
@@ -71,9 +82,13 @@ const readJson = async <T>(response: Response): Promise<T> => {
 };
 
 const requestPhp = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const url = `${PHP_BACKEND_URL}/${path}`;
+  const url = PHP_BACKEND_URL ? `${PHP_BACKEND_URL}/${path}` : null;
   try {
-    return await readJson<T>(await fetch(url, { ...init, headers: { Accept: 'application/json', ...init?.headers } }));
+    if (url) {
+      return await readJson<T>(await fetch(url, { ...init, headers: { Accept: 'application/json', ...init?.headers } }));
+    }
+    // If PHP backend URL is not available on the server, trigger fallback logic below.
+    throw new Error('PHP backend URL not configured');
   } catch (error) {
     const [basePath, queryString = ''] = path.split('?');
     const fallbackUrl = (() => {

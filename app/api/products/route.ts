@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PHP_ENDPOINTS = [
-  process.env.PHP_PRODUCTS_API,
-].filter(Boolean) as string[];
+function buildPhpEndpoints(request: NextRequest, phpPath: string) {
+  const endpoints: string[] = [];
 
-async function fetchFromPhp(queryString: string, options?: RequestInit) {
+  if (process.env.PHP_PRODUCTS_API) endpoints.push(process.env.PHP_PRODUCTS_API);
+
+  if (process.env.NEXT_PUBLIC_PHP_BACKEND_URL) {
+    endpoints.push(`${process.env.NEXT_PUBLIC_PHP_BACKEND_URL.replace(/\/$/, '')}/${phpPath}`);
+  }
+
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (host) {
+    const hostname = host.split(':')[0];
+    const proto = (request.headers.get('x-forwarded-proto') || 'http').replace(/:\/\//, '');
+    endpoints.push(`${proto}://${hostname}/luxury-backend/${phpPath}`);
+  }
+
+  return endpoints.filter(Boolean);
+}
+
+async function fetchFromPhp(request: NextRequest, phpPath: string, queryString: string, options?: RequestInit) {
+  const endpoints = buildPhpEndpoints(request, phpPath);
   let lastError: any = null;
 
-  for (const endpoint of PHP_ENDPOINTS) {
+  for (const endpoint of endpoints) {
     try {
       const url = queryString ? `${endpoint}?${queryString}` : endpoint;
       const res = await fetch(url, {
@@ -18,6 +34,7 @@ async function fetchFromPhp(queryString: string, options?: RequestInit) {
       if (res.ok) {
         return res;
       }
+
       lastError = new Error(`PHP endpoint ${url} responded with status ${res.status}`);
     } catch (err: any) {
       lastError = err;
@@ -27,11 +44,56 @@ async function fetchFromPhp(queryString: string, options?: RequestInit) {
   throw lastError || new Error('Failed to connect to PHP products backend');
 }
 
+function extractJsonFromPhpOutput(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+
+  const firstJsonCharIndex = trimmed.search(/[\[{]/);
+  if (firstJsonCharIndex === -1) {
+    return trimmed;
+  }
+
+  let candidate = trimmed.slice(firstJsonCharIndex);
+  const lastBracketIndex = Math.max(candidate.lastIndexOf(']'), candidate.lastIndexOf('}'));
+  if (lastBracketIndex !== -1) {
+    candidate = candidate.slice(0, lastBracketIndex + 1);
+  }
+
+  return candidate;
+}
+
+async function safeParsePhpJson(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch (primaryError) {
+    const jsonSegment = extractJsonFromPhpOutput(text);
+    try {
+      return JSON.parse(jsonSegment);
+    } catch (secondaryError) {
+      console.error('Failed to parse PHP JSON response:', {
+        primaryError,
+        secondaryError,
+        responseText: text,
+        jsonSegment,
+      });
+      return null;
+    }
+  }
+}
+
+async function normalizePhpResponse(response: Response) {
+  const data = await safeParsePhpJson(response);
+  return Array.isArray(data) ? data : data?.products ?? data?.data ?? data?.results ?? [];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams.toString();
-    const res = await fetchFromPhp(searchParams, { method: 'GET' });
-    const data = await res.json();
+    const res = await fetchFromPhp(request, 'manage-products.php', searchParams, { method: 'GET' });
+    const data = await normalizePhpResponse(res);
     return NextResponse.json(data);
   } catch (error: any) {
     console.error('Error in GET /api/products (PHP proxy):', error);
@@ -48,15 +110,15 @@ export async function POST(request: NextRequest) {
     if (!body.action) {
       body.action = 'CREATE';
     }
-    const res = await fetchFromPhp('', {
+    const res = await fetchFromPhp(request, 'manage-products.php', '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
-    return NextResponse.json(data);
+    const data = await safeParsePhpJson(res);
+    return NextResponse.json(data ?? { status: 'error', message: 'Invalid PHP response' });
   } catch (error: any) {
     console.error('Error in POST /api/products (PHP proxy):', error);
     return NextResponse.json(
@@ -70,15 +132,15 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     body.action = 'UPDATE';
-    const res = await fetchFromPhp('', {
+    const res = await fetchFromPhp(request, 'manage-products.php', '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
-    return NextResponse.json(data);
+    const data = await safeParsePhpJson(res);
+    return NextResponse.json(data ?? { status: 'error', message: 'Invalid PHP response' });
   } catch (error: any) {
     console.error('Error in PUT /api/products (PHP proxy):', error);
     return NextResponse.json(
@@ -92,15 +154,15 @@ export async function DELETE(request: NextRequest) {
   try {
     const id = request.nextUrl.searchParams.get('id');
     const body = { action: 'DELETE', id: Number(id) };
-    const res = await fetchFromPhp('', {
+    const res = await fetchFromPhp(request, 'manage-products.php', '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
-    return NextResponse.json(data);
+    const data = await safeParsePhpJson(res);
+    return NextResponse.json(data ?? { status: 'error', message: 'Invalid PHP response' });
   } catch (error: any) {
     console.error('Error in DELETE /api/products (PHP proxy):', error);
     return NextResponse.json(

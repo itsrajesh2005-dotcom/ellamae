@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PHP_ENDPOINTS = [
-  process.env.PHP_CATEGORIES_API,
-].filter(Boolean) as string[];
+function buildPhpEndpoints(request: NextRequest, phpPath: string) {
+  const endpoints: string[] = [];
+  if (process.env.PHP_CATEGORIES_API) endpoints.push(process.env.PHP_CATEGORIES_API);
+  if (process.env.NEXT_PUBLIC_PHP_BACKEND_URL) {
+    endpoints.push(`${process.env.NEXT_PUBLIC_PHP_BACKEND_URL.replace(/\/$/, '')}/${phpPath}`);
+  }
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (host) {
+    const hostname = host.split(':')[0];
+    const proto = (request.headers.get('x-forwarded-proto') || 'http').replace(/:\/\//, '');
+    endpoints.push(`${proto}://${hostname}/luxury-backend/${phpPath}`);
+  }
+  return endpoints.filter(Boolean);
+}
 
-async function fetchFromPhp(queryString: string, options?: RequestInit) {
+async function fetchFromPhp(request: NextRequest, phpPath: string, queryString: string, options?: RequestInit) {
+  const endpoints = buildPhpEndpoints(request, phpPath);
   let lastError: any = null;
 
-  for (const endpoint of PHP_ENDPOINTS) {
+  for (const endpoint of endpoints) {
     try {
       const url = queryString ? `${endpoint}?${queryString}` : endpoint;
       const res = await fetch(url, {
@@ -27,11 +39,16 @@ async function fetchFromPhp(queryString: string, options?: RequestInit) {
   throw lastError || new Error('Failed to connect to PHP categories backend');
 }
 
+async function normalizePhpResponse(response: Response) {
+  const data = await response.json();
+  return Array.isArray(data) ? data : data?.products ?? data?.data ?? data?.results ?? [];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams.toString();
-    const res = await fetchFromPhp(searchParams, { method: 'GET' });
-    const data = await res.json();
+    const res = await fetchFromPhp(request, 'manage-categories.php', searchParams, { method: 'GET' });
+    const data = await normalizePhpResponse(res);
     return NextResponse.json(data);
   } catch (error: any) {
     console.error('Error in GET /api/categories (PHP proxy):', error);
@@ -48,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (!body.action) {
       body.action = 'CREATE';
     }
-    const res = await fetchFromPhp('', {
+    const res = await fetchFromPhp(request, 'manage-categories.php', '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,7 +87,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     body.action = 'UPDATE';
-    const res = await fetchFromPhp('', {
+    const res = await fetchFromPhp(request, 'manage-categories.php', '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -92,7 +109,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const id = request.nextUrl.searchParams.get('id');
     const body = { action: 'DELETE', id: Number(id) };
-    const res = await fetchFromPhp('', {
+    const res = await fetchFromPhp(request, 'manage-categories.php', '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
