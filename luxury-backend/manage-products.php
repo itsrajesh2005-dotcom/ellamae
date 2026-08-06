@@ -2,7 +2,7 @@
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Content-Type: application/json");
 
 if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") {
@@ -115,7 +115,7 @@ if (!class_exists('mysqli')) {
 
 try {
     if (!class_exists('mysqli')) {
-        throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment. Please install php-mysql or use XAMPP PHP.");
+        throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment.");
     }
     /*---------DATABASE CONNECTION---------*/
     $conn = new mysqli("localhost", "root", "", "ellamae_db");
@@ -124,11 +124,11 @@ try {
         throw new Exception("Database Connection Failed: " . $conn->connect_error);
     }
 
-    /* ---------------- AUTO-CREATE TABLES IF NOT EXIST ---------------- */
-    // 1. Create the main products table
+    /* ---------------- AUTO-CREATE & UPDATE TABLE SCHEMA ---------------- */
     $createProductsTable = "CREATE TABLE IF NOT EXISTS products (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        category_id INT NOT NULL,
+        category_id INT NULL,
+        brand_id INT NULL,
         title VARCHAR(255) NOT NULL,
         price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
         stacks INT NOT NULL DEFAULT 0,
@@ -137,53 +137,38 @@ try {
         image_path LONGTEXT
     ) ENGINE=InnoDB;";
     
-    if (!$conn->query($createProductsTable)) {
-        throw new Exception("Products table creation failed: " . $conn->error);
+    $conn->query($createProductsTable);
+
+    // Auto-alter column additions if missing
+    $checkBrandCol = $conn->query("SHOW COLUMNS FROM products LIKE 'brand_id'");
+    if ($checkBrandCol && $checkBrandCol->num_rows == 0) {
+        $conn->query("ALTER TABLE products ADD COLUMN brand_id INT NULL AFTER category_id");
     }
 
     $checkCol = $conn->query("SHOW COLUMNS FROM products LIKE 'stacks'");
     if ($checkCol && $checkCol->num_rows == 0) {
         $conn->query("ALTER TABLE products ADD COLUMN stacks INT NOT NULL DEFAULT 0 AFTER price");
-    } else {
-        $conn->query("ALTER TABLE products MODIFY COLUMN stacks INT NOT NULL DEFAULT 0");
     }
 
     $checkImgCol = $conn->query("SHOW COLUMNS FROM products LIKE 'image_path'");
     if ($checkImgCol && $checkImgCol->num_rows == 0) {
         $conn->query("ALTER TABLE products ADD COLUMN image_path LONGTEXT AFTER status");
-    } else {
-        $conn->query("ALTER TABLE products MODIFY COLUMN image_path LONGTEXT");
     }
 
-    // 2. Create the separate product_images table for decoupled image storage
+    // Product Images Table
     $createProductImagesTable = "CREATE TABLE IF NOT EXISTS product_images (
         id INT AUTO_INCREMENT PRIMARY KEY,
         product_id INT NOT NULL,
-        image_path LONGTEXT NOT NULL,
-        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        image_path LONGTEXT NOT NULL
     ) ENGINE=InnoDB;";
-    
-    if (!$conn->query($createProductImagesTable)) {
-        throw new Exception("Product images table creation failed: " . $conn->error);
-    }
-
-    // Ensure product_images.image_path is LONGTEXT (4GB capacity) in existing tables
-    $conn->query("ALTER TABLE product_images MODIFY COLUMN image_path LONGTEXT NOT NULL");
+    $conn->query($createProductImagesTable);
 
 
     /* ---------------- GET / SEARCH PRODUCTS ---------------- */
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
-        $search = "";
-
-        if (isset($_GET['search'])) {
-            $search = trim($_GET['search']);
-        }
-
-        // Strip out the prefix if the user searches for "ELLAMAE15" so it searches the numeric column for just "15"
+        $search = isset($_GET['search']) ? trim($_GET['search']) : "";
         $searchId = str_replace("ELLAMAE", "", $search);
-
         $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
-        $categoryIdParam = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
 
         $where = [];
         $params = [];
@@ -195,12 +180,6 @@ try {
             $types .= "s";
         }
 
-        if ($categoryIdParam > 0) {
-            $where[] = "p.category_id = ?";
-            $params[] = $categoryIdParam;
-            $types .= "i";
-        }
-
         if ($search != "") {
             $where[] = "(p.title LIKE ? OR p.description LIKE ? OR p.id = ?)";
             $params[] = "%" . $search . "%";
@@ -209,8 +188,9 @@ try {
             $types .= "ssi";
         }
 
-        $sql = "SELECT p.id, p.category_id, p.title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path 
+        $sql = "SELECT p.id, p.category_id, p.brand_id, b.category_id AS brand_category_id, p.title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path 
                 FROM products p 
+                LEFT JOIN brands b ON p.brand_id = b.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id";
 
         if (count($where) > 0) {
@@ -230,9 +210,11 @@ try {
             while ($row = $result->fetch_assoc()) {
                 $product_id = $row['id'];
                 if (!isset($products[$product_id])) {
+                    $effectiveCatId = !empty($row['category_id']) ? intval($row['category_id']) : intval($row['brand_category_id'] ?? 0);
                     $products[$product_id] = [
                         "id" => intval($row['id']),
-                        "category_id" => intval($row['category_id']),
+                        "category_id" => $effectiveCatId,
+                        "brand_id" => intval($row['brand_id'] ?? 0),
                         "title" => $row['title'],
                         "price" => floatval($row['price']),
                         "stacks" => intval($row['stacks'] ?? 0),
@@ -252,43 +234,61 @@ try {
 
             echo json_encode(array_values($products));
             $stmt->close();
-        } else {
-            throw new Exception("Failed to prepare select query: " . $conn->error);
         }
         $conn->close();
         exit();
     }
 
-    /* ---------------- POST CONTROLLER LAYER (Action Payload Switcher) ---------------- */
-    $input = json_decode(file_get_contents("php://input"), true);
-    $action = isset($input['action']) ? $input['action'] : '';
+    /* ---------------- CONTROLLER ROUTER (POST/PUT/DELETE) ---------------- */
+    $rawInput = file_get_contents("php://input");
+    $input = json_decode($rawInput, true) ?? [];
+    
+    // Auto-detect HTTP Method if action payload is missing
+    $method = $_SERVER['REQUEST_METHOD'];
+    $action = $input['action'] ?? '';
+
+    if (empty($action)) {
+        if ($method == 'POST') $action = 'CREATE';
+        elseif ($method == 'PUT') $action = 'UPDATE';
+        elseif ($method == 'DELETE') $action = 'DELETE';
+    }
 
     /* ---------------- ACTION: CREATE ---------------- */
     if ($action == "CREATE") {
+        $brand_id = intval($input['brand_id'] ?? 0);
         $category_id = intval($input['category_id'] ?? 0);
+        
+        // Auto-resolve Category ID from Brands table if category_id isn't provided
+        if ($category_id <= 0 && $brand_id > 0) {
+            $catLookup = $conn->query("SELECT category_id FROM brands WHERE id = $brand_id");
+            if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
+                $category_id = intval($cRow['category_id']);
+            }
+        }
+
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);
         $stacks = intval($input['stacks'] ?? 0);
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
-        $images = $input['images'] ?? []; // Array of images in base64
+        $images = $input['images'] ?? [];
         $primaryImg = (is_array($images) && count($images) > 0) ? $images[0] : '';
 
-        if (empty($title) || $category_id <= 0) {
-            echo json_encode(["status" => "error", "message" => "Title and Category are required"]);
+        if (empty($title)) {
+            echo json_encode(["status" => "error", "message" => "Title is required"]);
             $conn->close();
             exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO products (category_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO products (category_id, brand_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("isdisss", $category_id, $title, $price, $stacks, $description, $status, $primaryImg);
+            $stmt->bind_param("iisdisss", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg);
 
             if ($stmt->execute()) {
                 $product_id = $conn->insert_id;
                 $stmt->close();
 
-                // Save multiple images into relational table
+                // Save multiple images
                 if (is_array($images) && count($images) > 0) {
                     $stmt2 = $conn->prepare("INSERT INTO product_images (product_id, image_path) VALUES (?, ?)");
                     if ($stmt2) {
@@ -306,11 +306,9 @@ try {
 
                 echo json_encode(["status" => "success", "message" => "Product Added Successfully", "id" => $product_id]);
             } else {
-                echo json_encode(["status" => "error", "message" => "Error adding product: " . $stmt->error]);
+                echo json_encode(["status" => "error", "message" => "SQL Error: " . $stmt->error]);
                 $stmt->close();
             }
-        } else {
-            throw new Exception("Failed to prepare insert query: " . $conn->error);
         }
         $conn->close();
         exit();
@@ -319,7 +317,16 @@ try {
     /* ---------------- ACTION: UPDATE ---------------- */
     if ($action == "UPDATE") {
         $id = intval($input['id'] ?? 0);
+        $brand_id = intval($input['brand_id'] ?? 0);
         $category_id = intval($input['category_id'] ?? 0);
+
+        if ($category_id <= 0 && $brand_id > 0) {
+            $catLookup = $conn->query("SELECT category_id FROM brands WHERE id = $brand_id");
+            if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
+                $category_id = intval($cRow['category_id']);
+            }
+        }
+
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);
         $stacks = intval($input['stacks'] ?? 0);
@@ -327,15 +334,7 @@ try {
         $status = $input['status'] ?? 'Active';
         $images = isset($input['images']) && is_array($input['images']) ? $input['images'] : [];
 
-        // Fallback: If category_id is missing or 0, resolve from existing database record
-        if ($category_id <= 0 && $id > 0) {
-            $catQuery = $conn->query("SELECT category_id FROM products WHERE id = $id");
-            if ($catQuery && $rowCat = $catQuery->fetch_assoc()) {
-                $category_id = intval($rowCat['category_id']);
-            }
-        }
-
-        if ($id <= 0 || empty($title) || $category_id <= 0) {
+        if ($id <= 0 || empty($title)) {
             echo json_encode(["status" => "error", "message" => "Missing required update properties"]);
             $conn->close();
             exit();
@@ -345,16 +344,13 @@ try {
 
         if ($hasNewImages) {
             $primaryImg = $images[0];
-            $stmt = $conn->prepare("UPDATE products SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
             if ($stmt) {
-                $stmt->bind_param("isdisssi", $category_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
+                $stmt->bind_param("iisdisssi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
                 $stmt->execute();
                 $stmt->close();
-            } else {
-                throw new Exception("Failed to prepare update query with images: " . $conn->error);
             }
 
-            // Delete old image records for this product
             $stmtDel = $conn->prepare("DELETE FROM product_images WHERE product_id = ?");
             if ($stmtDel) {
                 $stmtDel->bind_param("i", $id);
@@ -362,7 +358,6 @@ try {
                 $stmtDel->close();
             }
 
-            // Insert updated images array into relational table
             $stmt2 = $conn->prepare("INSERT INTO product_images (product_id, image_path) VALUES (?, ?)");
             if ($stmt2) {
                 $imgVal = "";
@@ -376,14 +371,11 @@ try {
                 $stmt2->close();
             }
         } else {
-            // Update fields without wiping out existing images
-            $stmt = $conn->prepare("UPDATE products SET category_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
             if ($stmt) {
-                $stmt->bind_param("isdissi", $category_id, $title, $price, $stacks, $description, $status, $id);
+                $stmt->bind_param("iisdissi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $id);
                 $stmt->execute();
                 $stmt->close();
-            } else {
-                throw new Exception("Failed to prepare update query: " . $conn->error);
             }
         }
 
@@ -392,31 +384,26 @@ try {
         exit();
     }
 
-    /* ---------------- ACTION: DELETE (TARGETED ONLY) ---------------- */
+    /* ---------------- ACTION: DELETE ---------------- */
     if ($action == "DELETE") {
-        $id = intval($input['id'] ?? 0);
+        $id = intval($input['id'] ?? $_GET['id'] ?? 0);
 
         if ($id <= 0) {
-            echo json_encode(["status" => "error", "message" => "Invalid target tracking log ID"]);
+            echo json_encode(["status" => "error", "message" => "Invalid ID"]);
             $conn->close();
             exit();
         }
 
-        // Explicitly deletes only the specific single row target matching the assigned numeric ID
         $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
         if ($stmt) {
             $stmt->bind_param("i", $id);
-
             if ($stmt->execute()) {
                 echo json_encode(["status" => "success", "message" => "Product Deleted Successfully"]);
             } else {
-                echo json_encode(["status" => "error", "message" => "Error deleting product: " . $stmt->error]);
+                echo json_encode(["status" => "error", "message" => "Error deleting: " . $stmt->error]);
             }
             $stmt->close();
-        } else {
-            throw new Exception("Failed to prepare delete query: " . $conn->error);
         }
-
         $conn->close();
         exit();
     }

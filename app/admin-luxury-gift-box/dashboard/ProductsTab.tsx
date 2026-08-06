@@ -55,30 +55,38 @@ export default function ProductsManagement() {
   const CATEGORIES_API = '/api/categories?status=all';
 
   // 1. DYNAMIC CATEGORIES RETRIEVAL HOOK
+  // Fetch live categories from API
   const fetchLiveCategories = async () => {
     try {
-      const res = await fetch(CATEGORIES_API);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setCategories(data);
+      const res = await fetch('/api/categories-db?status=all');
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(Array.isArray(data) ? data : data.categories || []);
       }
     } catch (err) {
-      console.error("Failed parsing relational parent categories:", err);
+      console.error("Error fetching categories:", err);
     }
   };
 
+  // Fetch live brands from API
   const fetchLiveBrands = async () => {
     try {
-      const res = await fetch('/api/brands?status=all');
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setBrands(data);
+      const res = await fetch('/api/brands-db?status=all');
+      if (res.ok) {
+        const data = await res.json();
+        setBrands(Array.isArray(data) ? data : data.brands || []);
       }
     } catch (err) {
-      console.error("Failed to fetch brands in products tab:", err);
+      console.error("Error fetching brands:", err);
     }
   };
 
+  // Your existing useEffect
+  useEffect(() => {
+    fetchLiveCategories();
+    fetchLiveBrands();
+    fetchGiftsFromServer();
+  }, []);
   // 2. READ / SEARCH PRODUCTS WITH BACKEND INTEGRATION 
   const fetchGiftsFromServer = async (search = "") => {
     setLoading(true);
