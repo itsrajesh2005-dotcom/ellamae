@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, CheckCircle, Upload, Image as ImageIcon, Layers, X } from 'lucide-react';
 
-const API_URL = "/api/brands";
+const API_URL = "/api/brands-db";
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState<any[]>([]);
@@ -33,30 +33,29 @@ export default function BrandsTab() {
 
   // 1. READ & DYNAMIC SEARCH PIPELINE
   const fetchBrands = async (search = "") => {
-  try {
-    let url = '/api/brands-db?status=all';
-    if (search) {
-      url += `&search=${encodeURIComponent(search)}`;
-    }
-    const response = await fetch(url);
-    
-    // Check if the response is JSON
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const data = await response.json();
-      if (response.ok) {
-        setBrands(data); // Ungaloda state setter name
-      } else {
-        console.error("API Error:", data);
+    try {
+      let url = `${API_URL}?status=all`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
       }
-    } else {
-      const text = await response.text();
-      console.error("Non-JSON Server Response:", text);
+      const response = await fetch(url);
+      
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        if (response.ok) {
+          setBrands(data);
+        } else {
+          console.error("API Error:", data);
+        }
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON Server Response:", text);
+      }
+    } catch (error) {
+      console.error("Failed fetching brands:", error);
     }
-  } catch (error) {
-    console.error("Failed fetching brands:", error);
-  }
-};
+  };
 
   const fetchCategories = async () => {
     try {
@@ -136,7 +135,6 @@ export default function BrandsTab() {
   const handleFinalBrandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Constructing brand object from your individual states
     const newBrandData = {
       name: newName,
       description: newDescription,
@@ -146,22 +144,21 @@ export default function BrandsTab() {
     };
 
     try {
-      const response = await fetch('/api/brands-db', {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newBrandData), // Fixed: Now using created brand object
+        body: JSON.stringify(newBrandData),
       });
 
       const contentType = response.headers.get("content-type");
 
       if (response.ok) {
         if (contentType && contentType.includes("application/json")) {
-          const result = await response.json();
+          await response.json();
           alert("Brand saved successfully!");
           
-          // Form resets and Modal Close
           setNewName('');
           setNewDescription('');
           setNewStatus('Active');
@@ -169,7 +166,7 @@ export default function BrandsTab() {
           setNewCategoryId('');
           setShowMasterAddOverlay(false);
 
-          fetchBrands(); // Refresh list after save
+          fetchBrands(searchTerm);
         }
       } else {
         if (contentType && contentType.includes("application/json")) {
@@ -190,7 +187,7 @@ export default function BrandsTab() {
   const handleViewClick = (brand: any) => {
     setSelectedBrand(brand);
     setEditName(brand.name);
-    setEditDescription(brand.description);
+    setEditDescription(brand.description || "");
     setEditStatus(brand.status);
     setEditImageString(brand.banner_image || "");
     setEditCategoryId(brand.category_id ? String(brand.category_id) : "");
@@ -211,11 +208,14 @@ export default function BrandsTab() {
         banner_image: editImageString,
         category_id: Number(editCategoryId) || null
       };
+      
       const response = await fetch(API_URL, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatePayload)
       });
+
+      const contentType = response.headers.get("content-type");
 
       if (!response.ok) {
         const text = await response.text();
@@ -223,15 +223,22 @@ export default function BrandsTab() {
         return alert(`Server Error: ${response.status} ${response.statusText}`);
       }
 
-      const result = await response.json();
-      if (result.status === "success") {
+      if (contentType && contentType.includes("application/json")) {
+        const result = await response.json();
+        if (result.status === "success" || response.ok) {
+          alert("Brand updated successfully!");
+          setShowPreviewModal(false);
+          fetchBrands(searchTerm);
+        } else {
+          alert(result.message || "Failed to update brand");
+        }
+      } else {
         setShowPreviewModal(false);
         fetchBrands(searchTerm);
-      } else {
-        alert(result.message);
       }
     } catch (error) {
       console.error("Data update stream crash:", error);
+      alert("Something went wrong while updating!");
     }
   };
 
@@ -286,8 +293,9 @@ export default function BrandsTab() {
             placeholder="Search brands by name or ID..."
             value={searchTerm}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
-              fetchBrands(e.target.value);
+              const val = e.target.value;
+              setSearchTerm(val);
+              fetchBrands(val);
             }}
             className="w-full bg-white/80 backdrop-blur-sm border border-[#d4af37]/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] text-black placeholder-gray-400 pl-11 pr-4 py-3 transition-all duration-300 shadow-sm"
           />
