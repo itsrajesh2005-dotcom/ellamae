@@ -145,6 +145,11 @@ try {
     $conn->query($createProductsTable);
 
     // Auto-alter column additions if missing
+    $checkCategoryCol = $conn->query("SHOW COLUMNS FROM products LIKE 'category_id'");
+    if ($checkCategoryCol && $checkCategoryCol->num_rows == 0) {
+        $conn->query("ALTER TABLE products ADD COLUMN category_id INT NULL AFTER id");
+    }
+
     $checkBrandCol = $conn->query("SHOW COLUMNS FROM products LIKE 'brand_id'");
     if ($checkBrandCol && $checkBrandCol->num_rows == 0) {
         $conn->query("ALTER TABLE products ADD COLUMN brand_id INT NULL AFTER category_id");
@@ -158,6 +163,18 @@ try {
     $checkImgCol = $conn->query("SHOW COLUMNS FROM products LIKE 'image_path'");
     if ($checkImgCol && $checkImgCol->num_rows == 0) {
         $conn->query("ALTER TABLE products ADD COLUMN image_path LONGTEXT AFTER status");
+    }
+
+    $productColumns = $conn->query("SHOW COLUMNS FROM products");
+    $productColumnNames = [];
+    if ($productColumns) {
+        while ($productColumn = $productColumns->fetch_assoc()) {
+            $productColumnNames[] = $productColumn['Field'];
+        }
+    }
+    $productTitleColumn = in_array('title', $productColumnNames, true) ? 'title' : 'name';
+    if (!in_array($productTitleColumn, $productColumnNames, true)) {
+        throw new Exception("Products table requires a title or name column");
     }
 
     // Product Images Table
@@ -200,14 +217,14 @@ try {
         }
 
         if ($search != "") {
-            $where[] = "(p.title LIKE ? OR p.description LIKE ? OR p.id = ?)";
+            $where[] = "(p.`$productTitleColumn` LIKE ? OR p.description LIKE ? OR p.id = ?)";
             $params[] = "%" . $search . "%";
             $params[] = "%" . $search . "%";
             $params[] = is_numeric($searchId) ? intval($searchId) : -1;
             $types .= "ssi";
         }
 
-        $sql = "SELECT p.id, p.category_id, p.brand_id, b.category_id AS brand_category_id, p.title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path 
+        $sql = "SELECT p.id, p.category_id, p.brand_id, b.category_id AS brand_category_id, p.`$productTitleColumn` AS title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path
                 FROM products p 
                 LEFT JOIN brands b ON p.brand_id = b.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id";
@@ -301,7 +318,7 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO products (category_id, brand_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO products (category_id, brand_id, `$productTitleColumn`, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         if (!$stmt) {
             throw new Exception("Product insert preparation failed: " . $conn->error);
         }
@@ -368,7 +385,7 @@ try {
 
         if ($hasNewImages) {
             $primaryImg = $images[0];
-            $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, `$productTitleColumn` = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
             if (!$stmt) throw new Exception("Product update preparation failed: " . $conn->error);
             $stmt->bind_param("iisdisssi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
             if (!$stmt->execute()) throw new Exception("Product update failed: " . $stmt->error);
@@ -394,7 +411,7 @@ try {
                 $stmt2->close();
             }
         } else {
-            $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, `$productTitleColumn` = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
             if (!$stmt) throw new Exception("Product update preparation failed: " . $conn->error);
             $stmt->bind_param("iisdissi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $id);
             if (!$stmt->execute()) throw new Exception("Product update failed: " . $stmt->error);
