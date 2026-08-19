@@ -60,7 +60,7 @@ export default function ProductsManagement() {
   // Fetch live categories from API
   const fetchLiveCategories = async () => {
     try {
-      const res = await fetch('/api/categories-db?status=all');
+      const res = await fetch('/api/categories?status=all');
       if (res.ok) {
         const data = await res.json();
         setCategories(Array.isArray(data) ? data : data.categories || []);
@@ -73,7 +73,7 @@ export default function ProductsManagement() {
   // Fetch live brands from API
   const fetchLiveBrands = async () => {
     try {
-      const res = await fetch('/api/brands-db?status=all');
+      const res = await fetch('/api/brands?status=all');
       if (res.ok) {
         const data = await res.json();
         setBrands(Array.isArray(data) ? data : data.brands || []);
@@ -562,7 +562,7 @@ export default function ProductsManagement() {
                         <option value="">Select Brand</option>
                         {brands.map((b) => (
                           <option key={b.id} value={b.id}>
-                            {b.name} ({(b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
+                            {b.name} ({b.category_name || (b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
                           </option>
                         ))}
                       </select>
@@ -710,7 +710,7 @@ export default function ProductsManagement() {
                             <option value="">Select Brand</option>
                             {brands.map((b) => (
                               <option key={b.id} value={b.id}>
-                                {b.name} ({(b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
+                                {b.name} ({b.category_name || (b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
                               </option>
                             ))}
                           </select>

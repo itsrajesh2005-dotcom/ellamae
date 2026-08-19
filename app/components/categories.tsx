@@ -189,7 +189,7 @@ export function Categories() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/categories-db?status=Active")
+    fetch("/api/categories?status=Active")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {

@@ -22,7 +22,7 @@ export function BrandsList() {
     const loadData = async () => {
       try {
         // 1. Fetch Categories
-        const catRes = await fetch("/api/categories-db?status=all", { cache: "no-store" });
+        const catRes = await fetch("/api/categories?status=all", { cache: "no-store" });
         if (catRes.ok) {
           const catData = await catRes.json();
           let catArray: any[] = [];
@@ -33,7 +33,7 @@ export function BrandsList() {
         }
 
         // 2. Fetch All Brands without query params (Frontend handles filtering)
-        const res = await fetch("/api/brands-db?status=all", { cache: "no-store" });
+        const res = await fetch("/api/brands?status=all", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           let brandArray: any[] = [];

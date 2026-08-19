@@ -10,7 +10,7 @@ export default function BrandSection() {
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const response = await fetch('/api/brands-db?status=active', { cache: 'no-store' });
+        const response = await fetch('/api/brands?status=active', { cache: 'no-store' });
         const data = await response.json();
         
         if (response.ok) {

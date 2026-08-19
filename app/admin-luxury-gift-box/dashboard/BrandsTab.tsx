@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, CheckCircle, Upload, Image as ImageIcon, Layers, X } from 'lucide-react';
 
-const API_URL = "/api/brands-db";
+const API_URL = "/api/brands";
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState<any[]>([]);
@@ -61,7 +61,7 @@ export default function BrandsTab() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories-db?status=all');
+      const res = await fetch('/api/categories?status=all');
       const data = await res.json();
       if (Array.isArray(data)) {
         setCategories(data);

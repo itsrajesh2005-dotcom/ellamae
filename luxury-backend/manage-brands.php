@@ -1,11 +1,15 @@
 <?php
+ob_start();
+error_reporting(0);
+ini_set('display_errors', '0');
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Content-Type: application/json");
 
 if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") {
+    http_response_code(200);
     exit();
 }
 
@@ -140,7 +144,10 @@ try {
         throw new Exception("Brands table creation failed: " . $conn->error);
     }
 
-    $conn->query("ALTER TABLE brands ADD COLUMN category_id INT NULL");
+    $brandCategoryColumn = $conn->query("SHOW COLUMNS FROM brands LIKE 'category_id'");
+    if ($brandCategoryColumn && $brandCategoryColumn->num_rows === 0) {
+        $conn->query("ALTER TABLE brands ADD COLUMN category_id INT NULL");
+    }
     $conn->query("CREATE TABLE IF NOT EXISTS brand_categories (
         brand_id INT NOT NULL,
         category_id INT NOT NULL,
@@ -183,8 +190,12 @@ try {
 
         $sql = "SELECT b.id, b.name, b.description, b.status, b.banner_image, b.category_id,
                    b.created_at, b.updated_at,
-                   (SELECT GROUP_CONCAT(DISTINCT bc.category_id)
-                FROM brand_categories bc WHERE bc.brand_id = b.id) AS category_ids
+                         (SELECT GROUP_CONCAT(DISTINCT bc.category_id)
+                          FROM brand_categories bc WHERE bc.brand_id = b.id) AS category_ids,
+                         (SELECT GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ')
+                          FROM brand_categories bc_name
+                          INNER JOIN category c ON c.id = bc_name.category_id
+                          WHERE bc_name.brand_id = b.id) AS category_name
             FROM brands b";
 
         if (count($where) > 0) {
@@ -210,6 +221,7 @@ try {
                     "banner_image" => $row['banner_image'],
                     "category_id" => $row['category_id'] !== null ? intval($row['category_id']) : null,
                     "category_ids" => $row['category_ids'] ? array_map('intval', explode(',', $row['category_ids'])) : [],
+                    "category_name" => $row['category_name'] ?? null,
                     "is_all_categories" => $row['category_id'] === null && empty($row['category_ids']),
                     "created_at" => $row['created_at'],
                     "updated_at" => $row['updated_at']
@@ -346,6 +358,8 @@ try {
     $conn->close();
 
 } catch (Throwable $e) {
+    if (ob_get_level() > 0) ob_clean();
+    http_response_code(500);
     echo json_encode([
         "status" => "error",
         "message" => "Server exception: " . $e->getMessage()

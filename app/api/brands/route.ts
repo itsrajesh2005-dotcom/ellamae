@@ -107,3 +107,23 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    body.action = 'UPDATE';
+    const res = await fetchFromPhp(request, 'manage-brands.php', '', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await safeParsePhpJson(res);
+    return NextResponse.json(data ?? { status: 'error', message: 'Invalid PHP response' });
+  } catch (error: any) {
+    console.error('Error in PUT /api/brands (PHP proxy):', error);
+    return NextResponse.json(
+      { status: 'error', message: error.message || 'Failed to communicate with PHP brands backend' },
+      { status: 500 }
+    );
+  }
+}
+

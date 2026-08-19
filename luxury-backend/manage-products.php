@@ -302,10 +302,12 @@ try {
         }
 
         $stmt = $conn->prepare("INSERT INTO products (category_id, brand_id, title, price, stacks, description, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        if ($stmt) {
-            $stmt->bind_param("iisdisss", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg);
+        if (!$stmt) {
+            throw new Exception("Product insert preparation failed: " . $conn->error);
+        }
+        $stmt->bind_param("iisdisss", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg);
 
-            if ($stmt->execute()) {
+        if ($stmt->execute()) {
                 $product_id = $conn->insert_id;
                 $stmt->close();
 
@@ -326,10 +328,9 @@ try {
                 }
 
                 echo json_encode(["status" => "success", "message" => "Product Added Successfully", "id" => $product_id]);
-            } else {
-                echo json_encode(["status" => "error", "message" => "SQL Error: " . $stmt->error]);
-                $stmt->close();
-            }
+        } else {
+            echo json_encode(["status" => "error", "message" => "SQL Error: " . $stmt->error]);
+            $stmt->close();
         }
         $conn->close();
         exit();
@@ -368,11 +369,10 @@ try {
         if ($hasNewImages) {
             $primaryImg = $images[0];
             $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ?, image_path = ? WHERE id = ?");
-            if ($stmt) {
-                $stmt->bind_param("iisdisssi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
-                $stmt->execute();
-                $stmt->close();
-            }
+            if (!$stmt) throw new Exception("Product update preparation failed: " . $conn->error);
+            $stmt->bind_param("iisdisssi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $primaryImg, $id);
+            if (!$stmt->execute()) throw new Exception("Product update failed: " . $stmt->error);
+            $stmt->close();
 
             $stmtDel = $conn->prepare("DELETE FROM product_images WHERE product_id = ?");
             if ($stmtDel) {
@@ -395,11 +395,10 @@ try {
             }
         } else {
             $stmt = $conn->prepare("UPDATE products SET category_id = ?, brand_id = ?, title = ?, price = ?, stacks = ?, description = ?, status = ? WHERE id = ?");
-            if ($stmt) {
-                $stmt->bind_param("iisdissi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $id);
-                $stmt->execute();
-                $stmt->close();
-            }
+            if (!$stmt) throw new Exception("Product update preparation failed: " . $conn->error);
+            $stmt->bind_param("iisdissi", $category_id, $brand_id, $title, $price, $stacks, $description, $status, $id);
+            if (!$stmt->execute()) throw new Exception("Product update failed: " . $stmt->error);
+            $stmt->close();
         }
 
         echo json_encode(["status" => "success", "message" => "Product Updated Successfully"]);
