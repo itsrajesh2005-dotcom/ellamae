@@ -131,16 +131,30 @@ export default function BrandsTab() {
     }
   };
 
+  // Helper function to resolve category display
+  const getCategoryDisplay = (catId: any) => {
+    if (!catId || catId === 'all') {
+      if (categories.length > 0) {
+        return categories.map(c => c.name).join(', ');
+      }
+      return "All Categories";
+    }
+    const found = categories.find(c => c.id === Number(catId));
+    return found ? found.name : <span className="text-gray-400 italic">None</span>;
+  };
+
   // 2. CREATE BRAND ROUTINE (SAVE & EXIT)
   const handleFinalBrandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const parsedCategoryId = (!newCategoryId || newCategoryId === 'all') ? null : Number(newCategoryId);
+
     const newBrandData = {
       name: newName,
       description: newDescription,
       status: newStatus,
       banner_image: newImageString,
-      category_id: Number(newCategoryId) || null
+      category_id: parsedCategoryId
     };
 
     try {
@@ -190,7 +204,7 @@ export default function BrandsTab() {
     setEditDescription(brand.description || "");
     setEditStatus(brand.status);
     setEditImageString(brand.banner_image || "");
-    setEditCategoryId(brand.category_id ? String(brand.category_id) : "");
+    setEditCategoryId(brand.category_id ? String(brand.category_id) : "all");
     setShowPreviewModal(true);
   };
 
@@ -200,13 +214,15 @@ export default function BrandsTab() {
     if (!selectedBrand) return;
 
     try {
+      const parsedCategoryId = (!editCategoryId || editCategoryId === 'all') ? null : Number(editCategoryId);
+
       const updatePayload = {
         id: selectedBrand.id,
         name: editName,
         description: editDescription,
         status: editStatus,
         banner_image: editImageString,
-        category_id: Number(editCategoryId) || null
+        category_id: parsedCategoryId
       };
       
       const response = await fetch(API_URL, {
@@ -218,9 +234,17 @@ export default function BrandsTab() {
       const contentType = response.headers.get("content-type");
 
       if (!response.ok) {
-        const text = await response.text();
-        console.error("Server Error Response:", text);
-        return alert(`Server Error: ${response.status} ${response.statusText}`);
+        let errorMessage = `Server Error: ${response.status} ${response.statusText}`;
+        if (contentType && contentType.includes("application/json")) {
+          const errData = await response.json();
+          if (errData.message || errData.error) {
+            errorMessage = errData.message || errData.error;
+          }
+        } else {
+          const text = await response.text();
+          console.error("Server Error Response:", text);
+        }
+        return alert(errorMessage);
       }
 
       if (contentType && contentType.includes("application/json")) {
@@ -339,7 +363,7 @@ export default function BrandsTab() {
                     </td>
                     <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{brand.name}</td>
                     <td className="py-3.5 px-5 text-gray-600 text-sm font-medium">
-                      {categories.find(c => c.id === brand.category_id)?.name || <span className="text-gray-400 italic">None</span>}
+                      {getCategoryDisplay(brand.category_id)}
                     </td>
                     <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{brand.description}</td>
                     <td className="py-3.5 px-5">
@@ -408,7 +432,7 @@ export default function BrandsTab() {
                     <div className="mb-5">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
                       <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
-                        <option value="">Select Category (Optional)</option>
+                        <option value="all">All Categories</option>
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -517,7 +541,7 @@ export default function BrandsTab() {
                       <div className="mb-5">
                         <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
                         <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
-                          <option value="">Select Category (Optional)</option>
+                          <option value="all">All Categories</option>
                           {categories.map((c) => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                           ))}
@@ -526,7 +550,7 @@ export default function BrandsTab() {
 
                       <div className="mb-8">
                         <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Status</label>
-                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
+                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
                           <option value="Active">Active</option>
                           <option value="Inactive">Inactive</option>
                         </select>
