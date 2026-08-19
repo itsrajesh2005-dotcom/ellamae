@@ -140,6 +140,16 @@ try {
         throw new Exception("Brands table creation failed: " . $conn->error);
     }
 
+    $conn->query("ALTER TABLE brands ADD COLUMN category_id INT NULL");
+    $conn->query("CREATE TABLE IF NOT EXISTS brand_categories (
+        brand_id INT NOT NULL,
+        category_id INT NOT NULL,
+        PRIMARY KEY (brand_id, category_id),
+        INDEX idx_brand_categories_category (category_id)
+    ) ENGINE=InnoDB");
+    $conn->query("INSERT IGNORE INTO brand_categories (brand_id, category_id)
+        SELECT id, category_id FROM brands WHERE category_id IS NOT NULL");
+
     /* ---------------- GET / SEARCH BRANDS ---------------- */
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
         $search = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -163,12 +173,24 @@ try {
             $types .= "ssi";
         }
 
-        $sql = "SELECT id, name, description, status, banner_image, created_at, updated_at FROM brands";
+        $categoryIdParam = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
+        if ($categoryIdParam > 0) {
+            $where[] = "(b.category_id = ? OR b.category_id IS NULL OR EXISTS (SELECT 1 FROM brand_categories bc_filter WHERE bc_filter.brand_id = b.id AND bc_filter.category_id = ?))";
+            $params[] = $categoryIdParam;
+            $params[] = $categoryIdParam;
+            $types .= "ii";
+        }
+
+        $sql = "SELECT b.id, b.name, b.description, b.status, b.banner_image, b.category_id,
+                   b.created_at, b.updated_at,
+                   (SELECT GROUP_CONCAT(DISTINCT bc.category_id)
+                FROM brand_categories bc WHERE bc.brand_id = b.id) AS category_ids
+            FROM brands b";
 
         if (count($where) > 0) {
             $sql .= " WHERE " . implode(" AND ", $where);
         }
-        $sql .= " ORDER BY id DESC";
+        $sql .= " ORDER BY b.id DESC";
 
         $stmt = $conn->prepare($sql);
         if ($stmt) {
@@ -186,6 +208,9 @@ try {
                     "description" => $row['description'],
                     "status" => $row['status'],
                     "banner_image" => $row['banner_image'],
+                    "category_id" => $row['category_id'] !== null ? intval($row['category_id']) : null,
+                    "category_ids" => $row['category_ids'] ? array_map('intval', explode(',', $row['category_ids'])) : [],
+                    "is_all_categories" => $row['category_id'] === null && empty($row['category_ids']),
                     "created_at" => $row['created_at'],
                     "updated_at" => $row['updated_at']
                 ];
@@ -212,6 +237,9 @@ try {
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
         $banner_image = $input['banner_image'] ?? '';
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $input['category_ids'] ?? []), fn($value) => $value > 0)));
+        if (count($categoryIds) === 0 && intval($input['category_id'] ?? 0) > 0) $categoryIds[] = intval($input['category_id']);
+        $category_id = $categoryIds[0] ?? null;
 
         if (empty($name)) {
             echo json_encode(["status" => "error", "message" => "Brand name is required"]);
@@ -219,12 +247,20 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO brands (name, description, status, banner_image) VALUES (?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO brands (name, description, status, banner_image, category_id) VALUES (?, ?, ?, ?, ?)");
         if ($stmt) {
-            $stmt->bind_param("ssss", $name, $description, $status, $banner_image);
+            $stmt->bind_param("ssssi", $name, $description, $status, $banner_image, $category_id);
 
             if ($stmt->execute()) {
                 $brand_id = $conn->insert_id;
+                if (count($categoryIds) > 0) {
+                    $mapping = $conn->prepare("INSERT IGNORE INTO brand_categories (brand_id, category_id) VALUES (?, ?)");
+                    if ($mapping) {
+                        $mapping->bind_param("ii", $brand_id, $mappingCategoryId);
+                        foreach ($categoryIds as $mappingCategoryId) $mapping->execute();
+                        $mapping->close();
+                    }
+                }
                 echo json_encode(["status" => "success", "message" => "Brand Created Successfully", "id" => $brand_id]);
             } else {
                 echo json_encode(["status" => "error", "message" => "Error creating brand: " . $stmt->error]);
@@ -244,6 +280,9 @@ try {
         $description = $input['description'] ?? '';
         $status = $input['status'] ?? 'Active';
         $banner_image = $input['banner_image'] ?? '';
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $input['category_ids'] ?? []), fn($value) => $value > 0)));
+        if (count($categoryIds) === 0 && intval($input['category_id'] ?? 0) > 0) $categoryIds[] = intval($input['category_id']);
+        $category_id = $categoryIds[0] ?? null;
 
         if ($id <= 0 || empty($name)) {
             echo json_encode(["status" => "error", "message" => "Brand ID and Name are required for update"]);
@@ -251,10 +290,19 @@ try {
             exit();
         }
 
-        $stmt = $conn->prepare("UPDATE brands SET name = ?, description = ?, status = ?, banner_image = ? WHERE id = ?");
+        $stmt = $conn->prepare("UPDATE brands SET name = ?, description = ?, status = ?, banner_image = ?, category_id = ? WHERE id = ?");
         if ($stmt) {
-            $stmt->bind_param("ssssi", $name, $description, $status, $banner_image, $id);
+            $stmt->bind_param("ssssii", $name, $description, $status, $banner_image, $category_id, $id);
             if ($stmt->execute()) {
+                $conn->query("DELETE FROM brand_categories WHERE brand_id = " . $id);
+                if (count($categoryIds) > 0) {
+                    $mapping = $conn->prepare("INSERT IGNORE INTO brand_categories (brand_id, category_id) VALUES (?, ?)");
+                    if ($mapping) {
+                        $mapping->bind_param("ii", $id, $mappingCategoryId);
+                        foreach ($categoryIds as $mappingCategoryId) $mapping->execute();
+                        $mapping->close();
+                    }
+                }
                 echo json_encode(["status" => "success", "message" => "Brand Updated Successfully"]);
             } else {
                 echo json_encode(["status" => "error", "message" => "Error updating brand: " . $stmt->error]);
@@ -277,6 +325,7 @@ try {
             exit();
         }
 
+        $conn->query("DELETE FROM brand_categories WHERE brand_id = " . $id);
         $stmt = $conn->prepare("DELETE FROM brands WHERE id = ?");
         if ($stmt) {
             $stmt->bind_param("i", $id);

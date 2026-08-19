@@ -35,8 +35,12 @@ export default async function BrandPage({ params }: Props) {
   }
   
   // 2. Fetch products under this brand
+  const [imageColumns]: any = await db.query("SHOW COLUMNS FROM product_images");
+  const availableImageColumn = ['image_path', 'image_url', 'image', 'path', 'file_path']
+    .find((column) => imageColumns.some((item: any) => item.Field === column));
+  const imageSelect = availableImageColumn ? `pi.${availableImageColumn} AS image_path` : 'NULL AS image_path';
   const [productRows]: any = await db.query(
-    `SELECT p.*, pi.image_path 
+    `SELECT p.*, ${imageSelect}
      FROM products p 
      LEFT JOIN product_images pi ON p.id = pi.product_id 
      WHERE p.status = 'Active' AND p.brand_id = ?

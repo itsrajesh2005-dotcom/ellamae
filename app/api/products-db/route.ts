@@ -87,10 +87,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { category_id, brand_id, title, price, stacks, description, status, images } = body;
     
-    // Auto-resolve category_id from selected brand if brand is provided
+    // Auto-resolve category_id from the selected brand when the form omits it.
     let finalCategoryId = category_id ? Number(category_id) : null;
     if (brand_id) {
-      const [brandRows]: any = await db.query('SELECT category_id FROM brands WHERE id = ?', [brand_id]);
+      const [brandRows]: any = await db.query(`
+        SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
+        FROM brands b
+        LEFT JOIN brand_categories bc ON b.id = bc.brand_id
+        WHERE b.id = ?
+        GROUP BY b.id
+      `, [brand_id]);
       if (brandRows.length > 0 && brandRows[0].category_id) {
         finalCategoryId = Number(brandRows[0].category_id);
       }
@@ -144,10 +150,16 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, category_id, brand_id, title, price, stacks, description, status, images } = body;
     
-    // Auto-resolve category_id from selected brand if brand is provided
+    // Auto-resolve category_id from the selected brand when the form omits it.
     let finalCategoryId = category_id ? Number(category_id) : null;
     if (brand_id) {
-      const [brandRows]: any = await db.query('SELECT category_id FROM brands WHERE id = ?', [brand_id]);
+      const [brandRows]: any = await db.query(`
+        SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
+        FROM brands b
+        LEFT JOIN brand_categories bc ON b.id = bc.brand_id
+        WHERE b.id = ?
+        GROUP BY b.id
+      `, [brand_id]);
       if (brandRows.length > 0 && brandRows[0].category_id) {
         finalCategoryId = Number(brandRows[0].category_id);
       }

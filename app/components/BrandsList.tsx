@@ -9,6 +9,7 @@ export interface Brand {
   status?: string;
   banner_image?: string;
   category_id?: number | string | null;
+  category_ids?: number[];
 }
 
 export function BrandsList() {
@@ -73,7 +74,8 @@ export function BrandsList() {
 
     if (isGlobalBrand) return true;
 
-    return String(brand.category_id) === String(selectedCategoryId);
+    return (brand.category_ids || []).some((categoryId) => String(categoryId) === String(selectedCategoryId))
+      || String(brand.category_id) === String(selectedCategoryId);
   });
 
   if (loading) {

@@ -22,14 +22,16 @@ export default function BrandsTab() {
   const [newDescription, setNewDescription] = useState('');
   const [newStatus, setNewStatus] = useState('Active');
   const [newImageString, setNewImageString] = useState(''); 
-  const [newCategoryId, setNewCategoryId] = useState('');
+  const [newCategoryIds, setNewCategoryIds] = useState<number[]>([]);
+  const [newAllCategories, setNewAllCategories] = useState(true);
 
   // Form states for viewing/editing inside overlay
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageString, setEditImageString] = useState('');
-  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editCategoryIds, setEditCategoryIds] = useState<number[]>([]);
+  const [editAllCategories, setEditAllCategories] = useState(true);
 
   // 1. READ & DYNAMIC SEARCH PIPELINE
   const fetchBrands = async (search = "") => {
@@ -133,6 +135,10 @@ export default function BrandsTab() {
 
   // Helper function to resolve category display
   const getCategoryDisplay = (catId: any) => {
+    if (Array.isArray(catId)) {
+      if (catId.length === 0) return 'All Categories';
+      return catId.map(Number).map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join(', ') || 'None';
+    }
     if (!catId || catId === 'all') {
       if (categories.length > 0) {
         return categories.map(c => c.name).join(', ');
@@ -147,14 +153,15 @@ export default function BrandsTab() {
   const handleFinalBrandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const parsedCategoryId = (!newCategoryId || newCategoryId === 'all') ? null : Number(newCategoryId);
+    const parsedCategoryId = newAllCategories ? null : (newCategoryIds[0] ?? null);
 
     const newBrandData = {
       name: newName,
       description: newDescription,
       status: newStatus,
       banner_image: newImageString,
-      category_id: parsedCategoryId
+      category_id: parsedCategoryId,
+      category_ids: newAllCategories ? [] : newCategoryIds
     };
 
     try {
@@ -177,7 +184,8 @@ export default function BrandsTab() {
           setNewDescription('');
           setNewStatus('Active');
           setNewImageString('');
-          setNewCategoryId('');
+          setNewCategoryIds([]);
+          setNewAllCategories(true);
           setShowMasterAddOverlay(false);
 
           fetchBrands(searchTerm);
@@ -204,7 +212,11 @@ export default function BrandsTab() {
     setEditDescription(brand.description || "");
     setEditStatus(brand.status);
     setEditImageString(brand.banner_image || "");
-    setEditCategoryId(brand.category_id ? String(brand.category_id) : "all");
+    const categoryIds = Array.isArray(brand.category_ids)
+      ? brand.category_ids.map(Number).filter(Boolean)
+      : (brand.category_id ? [Number(brand.category_id)] : []);
+    setEditCategoryIds(categoryIds);
+    setEditAllCategories(categoryIds.length === 0 || brand.is_all_categories === true);
     setShowPreviewModal(true);
   };
 
@@ -214,7 +226,7 @@ export default function BrandsTab() {
     if (!selectedBrand) return;
 
     try {
-      const parsedCategoryId = (!editCategoryId || editCategoryId === 'all') ? null : Number(editCategoryId);
+      const parsedCategoryId = editAllCategories ? null : (editCategoryIds[0] ?? null);
 
       const updatePayload = {
         id: selectedBrand.id,
@@ -222,7 +234,8 @@ export default function BrandsTab() {
         description: editDescription,
         status: editStatus,
         banner_image: editImageString,
-        category_id: parsedCategoryId
+        category_id: parsedCategoryId,
+        category_ids: editAllCategories ? [] : editCategoryIds
       };
       
       const response = await fetch(API_URL, {
@@ -363,7 +376,7 @@ export default function BrandsTab() {
                     </td>
                     <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{brand.name}</td>
                     <td className="py-3.5 px-5 text-gray-600 text-sm font-medium">
-                      {getCategoryDisplay(brand.category_id)}
+                      {getCategoryDisplay(brand.category_ids ?? brand.category_id)}
                     </td>
                     <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{brand.description}</td>
                     <td className="py-3.5 px-5">
@@ -431,12 +444,18 @@ export default function BrandsTab() {
                     </div>
                     <div className="mb-5">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
-                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
-                        <option value="all">All Categories</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
+                      <div className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white text-[#2A0812] space-y-2">
+                        <label className="flex items-center gap-2 font-medium">
+                          <input type="checkbox" checked={newAllCategories} onChange={(e) => { setNewAllCategories(e.target.checked); if (e.target.checked) setNewCategoryIds([]); }} />
+                          All Categories
+                        </label>
+                        {!newAllCategories && categories.map((c) => (
+                          <label key={c.id} className="flex items-center gap-2">
+                            <input type="checkbox" checked={newCategoryIds.includes(Number(c.id))} onChange={(e) => setNewCategoryIds(prev => e.target.checked ? [...prev, Number(c.id)] : prev.filter(id => id !== Number(c.id)))} />
+                            {c.name}
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
                     <div className="mb-8">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Initial Status</label>
@@ -540,12 +559,18 @@ export default function BrandsTab() {
 
                       <div className="mb-5">
                         <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
-                        <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
-                          <option value="all">All Categories</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                        <div className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white text-[#2A0812] space-y-2">
+                          <label className="flex items-center gap-2 font-medium">
+                            <input type="checkbox" checked={editAllCategories} onChange={(e) => { setEditAllCategories(e.target.checked); if (e.target.checked) setEditCategoryIds([]); }} />
+                            All Categories
+                          </label>
+                          {!editAllCategories && categories.map((c) => (
+                            <label key={c.id} className="flex items-center gap-2">
+                              <input type="checkbox" checked={editCategoryIds.includes(Number(c.id))} onChange={(e) => setEditCategoryIds(prev => e.target.checked ? [...prev, Number(c.id)] : prev.filter(id => id !== Number(c.id)))} />
+                              {c.name}
+                            </label>
                           ))}
-                        </select>
+                        </div>
                       </div>
 
                       <div className="mb-8">

@@ -37,8 +37,16 @@ export default async function CollectionPage({ params }: Props) {
 
   // 2. Fetch Brands associated with this Category
   const [brands]: any = await db.query(
-    "SELECT * FROM brands WHERE status = 'Active' AND category_id = ?",
-    [category.id]
+    `SELECT b.*,
+            (SELECT GROUP_CONCAT(DISTINCT bc.category_id)
+             FROM brand_categories bc WHERE bc.brand_id = b.id) AS category_ids
+     FROM brands b
+     WHERE b.status = 'Active'
+       AND (b.category_id = ? OR b.category_id IS NULL OR EXISTS (
+         SELECT 1 FROM brand_categories bc_filter
+         WHERE bc_filter.brand_id = b.id AND bc_filter.category_id = ?
+       ))`,
+    [category.id, category.id]
   )
 
   return (

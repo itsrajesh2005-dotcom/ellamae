@@ -1,4 +1,9 @@
 <?php
+ob_start();
+ini_set('display_errors', '0');
+set_error_handler(function ($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -163,6 +168,20 @@ try {
     ) ENGINE=InnoDB;";
     $conn->query($createProductImagesTable);
 
+    $imageColumns = $conn->query("SHOW COLUMNS FROM product_images");
+    $imageColumnNames = [];
+    if ($imageColumns) {
+        while ($imageColumn = $imageColumns->fetch_assoc()) {
+            $imageColumnNames[] = $imageColumn['Field'];
+        }
+    }
+    foreach (['image_url', 'image', 'path', 'file_path'] as $legacyImageColumn) {
+        if (in_array($legacyImageColumn, $imageColumnNames, true) && !in_array('image_path', $imageColumnNames, true)) {
+            $conn->query("ALTER TABLE product_images CHANGE COLUMN `" . $legacyImageColumn . "` image_path LONGTEXT NOT NULL");
+            break;
+        }
+    }
+
 
     /* ---------------- GET / SEARCH PRODUCTS ---------------- */
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
@@ -260,7 +279,9 @@ try {
         
         // Auto-resolve Category ID from Brands table if category_id isn't provided
         if ($category_id <= 0 && $brand_id > 0) {
-            $catLookup = $conn->query("SELECT category_id FROM brands WHERE id = $brand_id");
+            $catLookup = $conn->query("SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
+                FROM brands b LEFT JOIN brand_categories bc ON b.id = bc.brand_id
+                WHERE b.id = $brand_id GROUP BY b.id");
             if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
                 $category_id = intval($cRow['category_id']);
             }
@@ -274,8 +295,8 @@ try {
         $images = $input['images'] ?? [];
         $primaryImg = (is_array($images) && count($images) > 0) ? $images[0] : '';
 
-        if (empty($title)) {
-            echo json_encode(["status" => "error", "message" => "Title is required"]);
+        if (empty($title) || $category_id <= 0 || $brand_id <= 0) {
+            echo json_encode(["status" => "error", "message" => "Title, category, and brand are required"]);
             $conn->close();
             exit();
         }
@@ -321,7 +342,9 @@ try {
         $category_id = intval($input['category_id'] ?? 0);
 
         if ($category_id <= 0 && $brand_id > 0) {
-            $catLookup = $conn->query("SELECT category_id FROM brands WHERE id = $brand_id");
+            $catLookup = $conn->query("SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
+                FROM brands b LEFT JOIN brand_categories bc ON b.id = bc.brand_id
+                WHERE b.id = $brand_id GROUP BY b.id");
             if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
                 $category_id = intval($cRow['category_id']);
             }
@@ -334,8 +357,8 @@ try {
         $status = $input['status'] ?? 'Active';
         $images = isset($input['images']) && is_array($input['images']) ? $input['images'] : [];
 
-        if ($id <= 0 || empty($title)) {
-            echo json_encode(["status" => "error", "message" => "Missing required update properties"]);
+        if ($id <= 0 || empty($title) || $category_id <= 0 || $brand_id <= 0) {
+            echo json_encode(["status" => "error", "message" => "ID, title, category, and brand are required"]);
             $conn->close();
             exit();
         }
@@ -411,6 +434,8 @@ try {
     $conn->close();
 
 } catch (Throwable $e) {
+    if (ob_get_level() > 0) ob_clean();
+    http_response_code(500);
     echo json_encode([
         "status" => "error",
         "message" => "Server exception: " . $e->getMessage()

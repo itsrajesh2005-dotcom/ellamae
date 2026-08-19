@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
     
     // Select brands and also check multi-category junction table if present
     let query = `
-      SELECT b.*, 
-             GROUP_CONCAT(bc.category_id) AS category_ids
+      SELECT b.*,
+             (SELECT GROUP_CONCAT(DISTINCT bc.category_id)
+              FROM brand_categories bc WHERE bc.brand_id = b.id) AS category_ids
       FROM brands b
-      LEFT JOIN brand_categories bc ON b.id = bc.brand_id
     `;
     
     const params: any[] = [];
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Category Filter Logic:
     // Fetch if matching category_id OR category_id IS NULL ("All Categories") OR mapped in junction table
     if (categoryId && categoryId !== 'all' && categoryId !== '') {
-      conditions.push('(b.category_id = ? OR b.category_id IS NULL OR bc.category_id = ?)');
+      conditions.push('(b.category_id = ? OR b.category_id IS NULL OR EXISTS (SELECT 1 FROM brand_categories bc_filter WHERE bc_filter.brand_id = b.id AND bc_filter.category_id = ?))');
       params.push(categoryId, categoryId);
     }
 
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
     
-    query += ' GROUP BY b.id ORDER BY b.id DESC';
+    query += ' ORDER BY b.id DESC';
     
     const [rows]: any = await db.query(query, params);
     
@@ -89,6 +89,9 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     const { name, description, status, banner_image, category_id, category_ids } = body;
+    const selectedCategoryIds = Array.isArray(category_ids)
+      ? [...new Set(category_ids.map(Number).filter((id: number) => Number.isInteger(id) && id > 0))]
+      : [];
 
     // Handle Category ID: If "all" or empty, set category_id as NULL
     let finalCategoryId = category_id;
@@ -104,8 +107,8 @@ export async function POST(request: NextRequest) {
     const brandId = result.insertId;
 
     // Save in junction table if multiple categories array is passed
-    if (Array.isArray(category_ids) && category_ids.length > 0) {
-      const values = category_ids.map((cId: number) => [brandId, cId]);
+    if (selectedCategoryIds.length > 0) {
+      const values = selectedCategoryIds.map((cId: number) => [brandId, cId]);
       await db.query(
         'INSERT IGNORE INTO brand_categories (brand_id, category_id) VALUES ?',
         [values]
@@ -139,6 +142,9 @@ export async function PUT(request: NextRequest) {
     
     const body = await request.json();
     const { id, name, description, status, banner_image, category_id, category_ids } = body;
+    const selectedCategoryIds = Array.isArray(category_ids)
+      ? [...new Set(category_ids.map(Number).filter((categoryId: number) => Number.isInteger(categoryId) && categoryId > 0))]
+      : [];
 
     if (!id) {
       return NextResponse.json(
@@ -162,8 +168,8 @@ export async function PUT(request: NextRequest) {
     try {
       await db.query('DELETE FROM brand_categories WHERE brand_id = ?', [id]);
 
-      if (Array.isArray(category_ids) && category_ids.length > 0) {
-        const values = category_ids.map((cId: number) => [id, cId]);
+      if (selectedCategoryIds.length > 0) {
+        const values = selectedCategoryIds.map((cId: number) => [id, cId]);
         await db.query(
           'INSERT IGNORE INTO brand_categories (brand_id, category_id) VALUES ?',
           [values]
@@ -208,6 +214,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     await db.query('DELETE FROM brands WHERE id = ?', [id]);
+    await db.query('DELETE FROM brand_categories WHERE brand_id = ?', [id]);
     
     return NextResponse.json({ 
       status: 'success', 

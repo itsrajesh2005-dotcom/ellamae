@@ -135,6 +135,25 @@ export async function initializeDatabase() {
     console.error("Error adding brand_id to category:", err);
   }
 
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS brand_categories (
+      brand_id INT NOT NULL,
+      category_id INT NOT NULL,
+      PRIMARY KEY (brand_id, category_id),
+      INDEX idx_brand_categories_category (category_id)
+    ) ENGINE=InnoDB;
+  `);
+
+  try {
+    await db.query(`
+      INSERT IGNORE INTO brand_categories (brand_id, category_id)
+      SELECT id, category_id FROM brands
+      WHERE category_id IS NOT NULL
+    `);
+  } catch (err) {
+    console.error("Error migrating brand category mappings:", err);
+  }
+
   // Create Products Table
   await db.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -174,6 +193,18 @@ export async function initializeDatabase() {
       CONSTRAINT fk_product_images_product_id FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;
   `);
+
+  try {
+    const [imageColumns]: any = await db.query('SHOW COLUMNS FROM product_images');
+    const imageColumnNames = imageColumns.map((column: any) => column.Field);
+    const legacyImageColumn = ['image_url', 'image', 'path', 'file_path']
+      .find((column) => imageColumnNames.includes(column));
+    if (legacyImageColumn && !imageColumnNames.includes('image_path')) {
+      await db.query(`ALTER TABLE product_images CHANGE COLUMN \`${legacyImageColumn}\` image_path LONGTEXT NOT NULL`);
+    }
+  } catch (err) {
+    console.error("Error normalizing product image column:", err);
+  }
 
   try {
     await db.query('ALTER TABLE product_images MODIFY COLUMN image_path LONGTEXT NOT NULL');

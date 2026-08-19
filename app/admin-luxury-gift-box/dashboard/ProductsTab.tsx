@@ -41,6 +41,7 @@ export default function ProductsManagement() {
   const [newImageStrings, setNewImageStrings] = useState<string[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [newBrandId, setNewBrandId] = useState('');
+  const [newCategoryId, setNewCategoryId] = useState('');
 
   // Edit form properties states
   const [editName, setEditName] = useState('');
@@ -50,6 +51,7 @@ export default function ProductsManagement() {
   const [editStatus, setEditStatus] = useState('Active');
   const [editImageStrings, setEditImageStrings] = useState<string[]>([]);
   const [editBrandId, setEditBrandId] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
 
   const GIFTS_API = '/api/products';
   const CATEGORIES_API = '/api/categories?status=all';
@@ -151,6 +153,7 @@ export default function ProductsManagement() {
     e.preventDefault();
     if (!newName.trim()) return alert('Please input Product Name');
     if (!newBrandId) return alert('A valid brand selector choice is mandatory');
+    if (!newCategoryId) return alert('Please select a category');
     setActiveSubStep('images');
   };
 
@@ -224,9 +227,11 @@ export default function ProductsManagement() {
   const handleFinalGiftSubmit = async () => {
     if (!newName.trim()) return alert("Product Title can't be empty");
     if (!newBrandId) return alert("Please select a brand");
+    if (!newCategoryId) return alert("Please select a category");
 
     try {
       const payload = {
+        category_id: Number(newCategoryId),
         brand_id: Number(newBrandId),
         title: newName,
         price: Number(newPrice) || 0,
@@ -251,6 +256,7 @@ export default function ProductsManagement() {
       if (result.status === 'success') {
         setNewName(''); setNewDescription(''); setNewPrice(''); setNewStacks('0'); setNewImageStrings([]);
         setNewBrandId('');
+        setNewCategoryId('');
         setActiveSubStep('details');
         setShowMasterAddOverlay(false);
         fetchGiftsFromServer(searchTerm);
@@ -271,6 +277,7 @@ export default function ProductsManagement() {
     setEditStacks(String(gift.stacks !== undefined && gift.stacks !== null ? gift.stacks : (gift.stack !== undefined ? gift.stack : 0)));
     setEditStatus(gift.status);
     setEditBrandId(gift.brand_id ? String(gift.brand_id) : "");
+    setEditCategoryId(gift.category_id ? String(gift.category_id) : "");
     const parsedImages = (() => {
       if (Array.isArray(gift.images) && gift.images.length > 0) return gift.images.filter(Boolean);
       if (typeof gift.images === 'string' && gift.images.trim().startsWith('[')) {
@@ -290,10 +297,12 @@ export default function ProductsManagement() {
     e.preventDefault();
     if (!selectedGift) return;
     if (!editBrandId) return alert('Please select a brand');
+    if (!editCategoryId) return alert('Please select a category');
 
     try {
       const payload = {
         id: selectedGift.id,
+        category_id: Number(editCategoryId),
         brand_id: Number(editBrandId),
         title: editName,
         price: Number(editPrice) || 0,
@@ -541,12 +550,19 @@ export default function ProductsManagement() {
                       <textarea rows={3} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a product description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
                     <div className="mb-5">
+                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category (Required)</label>
+                      <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
+                        <option value="">Select Category</option>
+                        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="mb-5">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Brand (Required)</label>
                       <select value={newBrandId} onChange={(e) => setNewBrandId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
                         <option value="">Select Brand</option>
                         {brands.map((b) => (
                           <option key={b.id} value={b.id}>
-                            {b.name} ({categories.find(c => c.id == b.category_id)?.name || 'No Category'})
+                            {b.name} ({(b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
                           </option>
                         ))}
                       </select>
@@ -682,12 +698,19 @@ export default function ProductsManagement() {
                           <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
                         </div>
                         <div>
+                          <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category (Required)</label>
+                          <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
+                            <option value="">Select Category</option>
+                            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
                           <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Brand (Required)</label>
                           <select value={editBrandId} onChange={(e) => setEditBrandId(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all">
                             <option value="">Select Brand</option>
                             {brands.map((b) => (
                               <option key={b.id} value={b.id}>
-                                {b.name} ({categories.find(c => c.id == b.category_id)?.name || 'No Category'})
+                                {b.name} ({(b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
                               </option>
                             ))}
                           </select>
