@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/db_config.php';
 ob_start();
 ini_set('display_errors', '0');
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -123,7 +124,14 @@ try {
         throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment.");
     }
     /*---------DATABASE CONNECTION---------*/
-    $conn = new mysqli("localhost", "root", "", "ellamae_db");
+    $db = getDbConfig();
+
+$conn = new mysqli(
+    $db['host'],
+    $db['user'],
+    $db['pass'],
+    $db['name']
+);
 
     if ($conn->connect_error) {
         throw new Exception("Database Connection Failed: " . $conn->connect_error);
@@ -205,10 +213,22 @@ try {
         $search = isset($_GET['search']) ? trim($_GET['search']) : "";
         $searchId = str_replace("ELLAMAE", "", $search);
         $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
-
         $where = [];
         $params = [];
         $types = "";
+        $brandIdParam = isset($_GET['brand_id']) ? intval($_GET['brand_id']) : 0;
+        if ($brandIdParam > 0) {
+            $where[] = "p.brand_id = ?";
+            $params[] = $brandIdParam;
+            $types .= "i";
+        }
+
+        $categoryIdParam = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
+        if ($categoryIdParam > 0) {
+            $where[] = "p.category_id = ?";
+            $params[] = $categoryIdParam;
+            $types .= "i";
+        }
 
         if ($statusParam !== 'all') {
             $where[] = "p.status = ?";
@@ -224,7 +244,7 @@ try {
             $types .= "ssi";
         }
 
-        $sql = "SELECT p.id, p.category_id, p.brand_id, b.category_id AS brand_category_id, p.`$productTitleColumn` AS title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path
+        $sql = "SELECT p.id, p.category_id, p.brand_id, NULL AS brand_category_id, p.`$productTitleColumn` AS title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path
                 FROM products p 
                 LEFT JOIN brands b ON p.brand_id = b.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id";
@@ -294,16 +314,6 @@ try {
         $brand_id = intval($input['brand_id'] ?? 0);
         $category_id = intval($input['category_id'] ?? 0);
         
-        // Auto-resolve Category ID from Brands table if category_id isn't provided
-        if ($category_id <= 0 && $brand_id > 0) {
-            $catLookup = $conn->query("SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
-                FROM brands b LEFT JOIN brand_categories bc ON b.id = bc.brand_id
-                WHERE b.id = $brand_id GROUP BY b.id");
-            if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
-                $category_id = intval($cRow['category_id']);
-            }
-        }
-
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);
         $stacks = intval($input['stacks'] ?? 0);
@@ -358,15 +368,6 @@ try {
         $id = intval($input['id'] ?? 0);
         $brand_id = intval($input['brand_id'] ?? 0);
         $category_id = intval($input['category_id'] ?? 0);
-
-        if ($category_id <= 0 && $brand_id > 0) {
-            $catLookup = $conn->query("SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
-                FROM brands b LEFT JOIN brand_categories bc ON b.id = bc.brand_id
-                WHERE b.id = $brand_id GROUP BY b.id");
-            if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
-                $category_id = intval($cRow['category_id']);
-            }
-        }
 
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);

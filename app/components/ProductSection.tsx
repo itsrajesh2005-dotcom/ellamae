@@ -29,7 +29,7 @@ export function ProductSection() {
           }
         }
 
-        const giftsRes = await fetch("/api/products-db?status=Active");
+        const giftsRes = await fetch("/api/products?status=Active");
         if (giftsRes.ok) {
           const giftsData = await giftsRes.json();
           if (Array.isArray(giftsData) && giftsData.length > 0) {

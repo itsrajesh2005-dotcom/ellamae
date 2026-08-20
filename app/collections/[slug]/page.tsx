@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { getDbConnection, initializeDatabase } from "@/lib/db"
+import { fetchCategories, fetchBrands } from "@/lib/phpApi"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
@@ -24,30 +24,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CollectionPage({ params }: Props) {
   const { slug } = await params
   
-  await initializeDatabase()
-  const db = await getDbConnection()
-
-  // 1. Fetch active categories
-  const [catRows]: any = await db.query("SELECT * FROM category WHERE status = 'Active'")
+  // 1. Fetch active categories from PHP backend
+  const catRows = await fetchCategories("Active")
   const category = catRows.find((c: any) => slugify(c.name) === slug)
 
   if (!category) {
     notFound()
   }
 
-  // 2. Fetch Brands associated with this Category
-  const [brands]: any = await db.query(
-    `SELECT b.*,
-            (SELECT GROUP_CONCAT(DISTINCT bc.category_id)
-             FROM brand_categories bc WHERE bc.brand_id = b.id) AS category_ids
-     FROM brands b
-     WHERE b.status = 'Active'
-       AND (b.category_id = ? OR b.category_id IS NULL OR EXISTS (
-         SELECT 1 FROM brand_categories bc_filter
-         WHERE bc_filter.brand_id = b.id AND bc_filter.category_id = ?
-       ))`,
-    [category.id, category.id]
-  )
+  // 2. Fetch all active brands from PHP backend (brands comes in every categories)
+  const brands = await fetchBrands("Active")
 
   return (
     <>
@@ -93,7 +79,7 @@ export default async function CollectionPage({ params }: Props) {
                 return (
                   <Link
                     key={brand.id}
-                    href={`/brands/${brandSlug}`}
+                    href={`/brands/${brandSlug}?category=${slug}`}
                     className="group relative flex flex-col h-[400px] overflow-hidden rounded-2xl bg-white shadow-sm border border-neutral-100 hover:shadow-md transition-all duration-500"
                   >
                     {/* Image */}

@@ -1,92 +1,132 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDbConnection, initializeDatabase } from '../../../../lib/db';
 
-function categorySlug(name: string) {
-  const map: Record<string, string> = {
-    'Birthday Gifts': 'birthday-gifts',
-    'Anniversary Gifts': 'anniversary-gifts',
-    'Wedding Gifts': 'wedding-gifts',
-    'Corporate Gifts': 'corporate-gifts',
-    'Personalized Gifts': 'personalized-gifts',
-    'Home & Lifestyle': 'home-lifestyle',
-    'Gift Hampers': 'festive-gift-hampers',
-    'Festive Gift Hampers': 'festive-gift-hampers',
-    'Utility Products': 'utility-products',
-    'Car Accessories': 'car-accessories',
-  };
+function buildPhpEndpoints(request: NextRequest) {
+  const endpoints: string[] = [];
 
-  return map[name] || '';
+  if (process.env.PHP_PRODUCTS_API) {
+    const base = process.env.PHP_PRODUCTS_API.substring(
+      0,
+      process.env.PHP_PRODUCTS_API.lastIndexOf('/')
+    );
+    endpoints.push(`${base}/get_product_detail.php`);
+  }
+
+  if (process.env.NEXT_PUBLIC_PHP_BACKEND_URL) {
+    endpoints.push(
+      `${process.env.NEXT_PUBLIC_PHP_BACKEND_URL.replace(/\/$/, '')}/get_product_detail.php`
+    );
+  }
+
+  const host =
+    request.headers.get('x-forwarded-host') ||
+    request.headers.get('host');
+
+  if (host) {
+    const hostname = host.split(':')[0];
+    const proto = (
+      request.headers.get('x-forwarded-proto') || 'http'
+    ).replace(/:\/\//, '');
+
+    endpoints.push(
+      `${proto}://${hostname}/luxury-backend/get_product_detail.php`
+    );
+  }
+
+  return [...new Set(endpoints)];
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function fetchProductFromPhp(
+  request: NextRequest,
+  id: string
+) {
+  const endpoints = buildPhpEndpoints(request);
+
+  let lastError: unknown = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const url = `${endpoint}?id=${encodeURIComponent(id)}`;
+
+      console.log(`Fetching product ${id} from PHP: ${url}`);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      const body = await response.text();
+
+      lastError = new Error(
+        `PHP endpoint returned ${response.status}: ${body}`
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Failed to connect to PHP product backend');
+}
+
+async function parsePhpResponse(response: Response) {
+  const text = await response.text();
+
+  if (!text.trim()) {
+    throw new Error('PHP backend returned an empty response');
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('Invalid JSON returned by PHP backend:', text);
+
+    throw new Error('PHP backend returned invalid JSON');
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
+
     const productId = Number(id);
 
     if (!Number.isInteger(productId) || productId <= 0) {
       return NextResponse.json(
-        { status: 'error', message: 'A valid product id is required' },
+        {
+          status: 'error',
+          message: 'A valid product id is required',
+        },
         { status: 400 }
       );
     }
 
-    await initializeDatabase();
-    const db = await getDbConnection();
-    const [rows] = await db.query(
-      `SELECT p.id, p.title, p.description, p.price, p.stacks, p.status, c.name AS category_name, pi.image_path
-       FROM products p
-       LEFT JOIN category c ON c.id = p.category_id
-       LEFT JOIN product_images pi ON pi.product_id = p.id
-       WHERE p.id = ?
-       ORDER BY pi.id ASC`,
-      [productId]
-    ) as [Array<Record<string, any>>, unknown];
+    const response = await fetchProductFromPhp(
+      request,
+      String(productId)
+    );
 
-    let product: Record<string, any> | null = null;
+    const data = await parsePhpResponse(response);
 
-    for (const row of rows) {
-      if (!product) {
-        product = {
-          id: Number(row.id),
-          product_title: row.title || '',
-          description_specifications: row.description || '',
-          price: Number(row.price || 0),
-          stacks: Number(row.stacks || 0),
-          status: row.status || 'Active',
-          category_name: row.category_name || '',
-          category_slug: categorySlug(row.category_name || ''),
-          image: '',
-          images: [],
-        };
-      }
-
-      if (row.image_path) {
-        product.images.push(row.image_path);
-        if (!product.image) {
-          product.image = row.image_path;
-        }
-      }
-    }
-
-    if (!product) {
-      return NextResponse.json(
-        { status: 'error', message: 'Product not found' },
-        { status: 404 }
-      );
-    }
-
-    if (!product.image) {
-      product.image = '/placeholder.svg';
-    }
-    if (!product.images.length) {
-      product.images = ['/placeholder.svg'];
-    }
-
-    return NextResponse.json(product);
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error in GET /api/products/[id]:', error);
+    console.error(
+      'Error in GET /api/products/[id] PHP proxy:',
+      error
+    );
+
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Server exception occurred' },
+      {
+        status: 'error',
+        message:
+          error?.message ||
+          'Failed to communicate with PHP product backend',
+      },
       { status: 500 }
     );
   }

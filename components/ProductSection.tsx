@@ -21,7 +21,7 @@ export function ProductSection() {
   useEffect(() => {
     async function loadBackendData() {
       try {
-        const catRes = await fetch("/api/categories-db?status=Active");
+        const catRes = await fetch("/api/categories?status=Active");
         if (catRes.ok) {
           const catData = await catRes.json();
           if (Array.isArray(catData) && catData.length > 0) {
@@ -29,7 +29,7 @@ export function ProductSection() {
           }
         }
 
-        const giftsRes = await fetch("/api/products-db?status=Active");
+        const giftsRes = await fetch("/api/products?status=Active");
         if (giftsRes.ok) {
           const giftsData = await giftsRes.json();
           if (Array.isArray(giftsData) && giftsData.length > 0) {

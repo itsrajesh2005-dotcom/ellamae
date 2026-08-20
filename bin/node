@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /home/akash/snap/antigravity/5/.config/Antigravity/bin/agy-node "$@"

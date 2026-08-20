@@ -4,7 +4,7 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ProductDetailClient } from "@/components/ProductDetailClient"
 import { products } from "@/data/products"
-import { getDbConnection, initializeDatabase } from "@/lib/db"
+import { fetchProductDetail } from "@/lib/phpApi"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -13,47 +13,27 @@ interface Props {
 async function getProductFromDb(id: string) {
   const cleanId = id.replace(/^ELLAMAE/i, "")
   try {
-    await initializeDatabase()
-    const db = await getDbConnection()
-    
-    const [rows]: any = await db.query(`
-      SELECT p.*, c.name as category_name, pi.image_path AS rel_image_path
-      FROM products p 
-      LEFT JOIN category c ON p.category_id = c.id
-      LEFT JOIN product_images pi ON p.id = pi.product_id 
-      WHERE p.id = ? OR p.id = ?
-    `, [cleanId, id])
+    const data = await fetchProductDetail(cleanId)
 
-    if (rows.length > 0) {
-      const match = rows[0]
-      const images: string[] = []
-      
-      if (match.image_path) {
-        images.push(match.image_path)
-      }
-      
-      for (const row of rows) {
-        if (row.rel_image_path && !images.includes(row.rel_image_path)) {
-          images.push(row.rel_image_path)
-        }
-      }
-      
+    if (data && data.id) {
+      const rawImages = Array.isArray(data.images) ? data.images : [data.image_path].filter(Boolean)
+      const images = rawImages.filter(Boolean)
       const primaryImg = images.length > 0 ? images[0] : ""
       
       return {
-        id: match.id.toString(),
-        name: match.title,
-        price: parseFloat(match.price || "0"),
-        stacks: parseInt(match.stacks || "0", 10),
-        description: match.description || "",
-        category: match.category_name || "Gifts",
+        id: data.id.toString(),
+        name: data.title || data.name || data.product_title || "",
+        price: parseFloat(data.price || "0"),
+        stacks: parseInt(data.stacks || "0", 10),
+        description: data.description || data.description_specifications || "",
+        category: data.category_name || data.category || "Gifts",
         image: primaryImg,
         galleryImages: images,
-        status: match.status,
+        status: data.status || "Active",
       }
     }
   } catch (err) {
-    console.error("Failed to query product from database:", err)
+    console.error("Failed to query product from PHP backend:", err)
   }
   return null
 }
@@ -61,11 +41,24 @@ async function getProductFromDb(id: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   
-  let product = await getProductFromDb(id)
+  let product: any = await getProductFromDb(id)
 
   if (!product) {
     const cleanId = id.replace(/^ELLAMAE/i, "")
-    product = products.find((item) => item.id.toString() === cleanId || item.id.toString() === id)
+    const staticProd = products.find((item) => item.id.toString() === cleanId || item.id.toString() === id)
+    if (staticProd) {
+      product = {
+        id: staticProd.id.toString(),
+        name: staticProd.name,
+        price: staticProd.price,
+        stacks: 0,
+        description: staticProd.description,
+        category: staticProd.category,
+        image: staticProd.image,
+        galleryImages: staticProd.galleryImages || [staticProd.image],
+        status: staticProd.status || "Active",
+      }
+    }
   }
 
   if (!product) return { title: "Product Not Found — ELLAMAE" }
@@ -83,12 +76,25 @@ export function generateStaticParams() {
 export default async function ProductPage({ params }: Props) {
   const { id } = await params
 
-  let product = await getProductFromDb(id)
+  let product: any = await getProductFromDb(id)
 
   // Fallback to static product list
   if (!product) {
     const cleanId = id.replace(/^ELLAMAE/i, "")
-    product = products.find((item) => item.id.toString() === cleanId || item.id.toString() === id)
+    const staticProd = products.find((item) => item.id.toString() === cleanId || item.id.toString() === id)
+    if (staticProd) {
+      product = {
+        id: staticProd.id.toString(),
+        name: staticProd.name,
+        price: staticProd.price,
+        stacks: 0,
+        description: staticProd.description,
+        category: staticProd.category,
+        image: staticProd.image,
+        galleryImages: staticProd.galleryImages || [staticProd.image],
+        status: staticProd.status || "Active",
+      }
+    }
   }
 
   if (!product) notFound()

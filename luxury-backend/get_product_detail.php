@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/db_config.php';
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -27,10 +28,7 @@ function response($data, $status = 200) {
     exit();
 }
 
-function db_config($key, $fallback) {
-    $value = getenv($key);
-    return ($value !== false && trim($value) !== '') ? $value : $fallback;
-}
+
 
 function image_url($value) {
     if (!is_string($value) || trim($value) === '') return '';
@@ -60,7 +58,14 @@ $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id || $id <= 0) response(['status' => 'error', 'message' => 'A valid product id is required'], 400);
 
 try {
-    $conn = new mysqli(db_config('DB_HOST', 'localhost'), db_config('DB_USER', 'root'), db_config('DB_PASS', ''), db_config('DB_NAME', 'ellamae_db'));
+    $db = getDbConfig();
+
+$conn = new mysqli(
+    $db['host'],
+    $db['user'],
+    $db['pass'],
+    $db['name']
+);
     if ($conn->connect_error) throw new Exception('Database connection failed');
 
     $sql = "SELECT p.id, p.title, p.description, p.price, p.stacks, p.status, c.name AS category_name, pi.image_path

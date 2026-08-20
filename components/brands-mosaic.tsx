@@ -134,7 +134,7 @@ export function BrandsMosaic() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/brands-db?status=Active")
+    fetch("/api/brands?status=Active")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {

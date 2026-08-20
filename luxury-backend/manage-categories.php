@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/db_config.php';
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -119,12 +120,14 @@ try {
     }
     /* ---------------- DATABASE CONNECTION ---------------- */
 
-    $conn = new mysqli(
-        "localhost",
-        "root",
-        "",
-        "ellamae_db"
-    );
+    $db = getDbConfig();
+
+$conn = new mysqli(
+    $db['host'],
+    $db['user'],
+    $db['pass'],
+    $db['name']
+);
 
     if ($conn->connect_error) {
         throw new Exception("Database Connection Failed: " . $conn->connect_error);
@@ -136,8 +139,7 @@ try {
         name VARCHAR(255) NOT NULL,
         description TEXT,
         status VARCHAR(50) DEFAULT 'Active',
-        banner_image LONGTEXT,
-        brand_id INT DEFAULT NULL
+        banner_image LONGTEXT
     ) ENGINE=InnoDB;";
     
     if (!$conn->query($createCategoryTable)) {
@@ -146,10 +148,10 @@ try {
 
     $conn->query("ALTER TABLE category MODIFY COLUMN banner_image LONGTEXT");
     
-    // Add brand_id column if not exists
-    $checkBrandIdCol = $conn->query("SHOW COLUMNS FROM category LIKE 'brand_id'");
-    if ($checkBrandIdCol && $checkBrandIdCol->num_rows == 0) {
-        $conn->query("ALTER TABLE category ADD COLUMN brand_id INT DEFAULT NULL");
+    // Drop brand_id column from category table if it exists (migration to global brands)
+    $checkCol = $conn->query("SHOW COLUMNS FROM category LIKE 'brand_id'");
+    if ($checkCol && $checkCol->num_rows > 0) {
+        $conn->query("ALTER TABLE category DROP COLUMN brand_id");
     }
 
     /* ---------------- GET ALL / SEARCH CATEGORIES ---------------- */
@@ -161,7 +163,6 @@ try {
         }
         
         $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
-        $brandIdParam = isset($_GET['brand_id']) ? intval($_GET['brand_id']) : 0;
 
         $where = [];
         $params = [];
@@ -173,12 +174,6 @@ try {
             $types .= "s";
         }
 
-        if ($brandIdParam > 0) {
-            $where[] = "c.brand_id = ?";
-            $params[] = $brandIdParam;
-            $types .= "i";
-        }
-
         if ($search != "") {
             $where[] = "(c.name LIKE ? OR c.description LIKE ?)";
             $params[] = "%" . $search . "%";
@@ -186,9 +181,8 @@ try {
             $types .= "ss";
         }
 
-        $sql = "SELECT c.*, b.name AS brand_name 
-                FROM category c 
-                LEFT JOIN brands b ON c.brand_id = b.id";
+        $sql = "SELECT c.id, c.name, c.description, c.status, c.banner_image, c.created_at
+                FROM category c";
         if (count($where) > 0) {
             $sql .= " WHERE " . implode(" AND ", $where);
         }
@@ -203,9 +197,8 @@ try {
             $result = $stmt->get_result();
             $categories = [];
             while ($row = $result->fetch_assoc()) {
-                if (isset($row['brand_id'])) {
-                    $row['brand_id'] = intval($row['brand_id']);
-                }
+                $row['brand_id'] = null;
+                $row['brand_name'] = null;
                 $categories[] = $row;
             }
             echo json_encode($categories);
@@ -228,7 +221,6 @@ try {
             $description = $input['description'] ?? '';
             $status = $input['status'] ?? 'Active';
             $banner_image = $input['banner_image'] ?? '';
-            $brand_id = isset($input['brand_id']) && intval($input['brand_id']) > 0 ? intval($input['brand_id']) : null;
 
             if (empty($name)) {
                 echo json_encode([
@@ -239,9 +231,9 @@ try {
                 exit();
             }
 
-            $stmt = $conn->prepare("INSERT INTO category (name, description, status, banner_image, brand_id) VALUES (?, ?, ?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO category (name, description, status, banner_image) VALUES (?, ?, ?, ?)");
             if ($stmt) {
-                $stmt->bind_param("ssssi", $name, $description, $status, $banner_image, $brand_id);
+                $stmt->bind_param("ssss", $name, $description, $status, $banner_image);
                 if ($stmt->execute()) {
                     echo json_encode([
                         "status" => "success",
@@ -251,7 +243,7 @@ try {
                         "description" => $description,
                         "status_val" => $status,
                         "banner_image" => $banner_image,
-                        "brand_id" => $brand_id
+                        "brand_id" => null
                     ]);
                 } else {
                     echo json_encode([
@@ -275,7 +267,6 @@ try {
             $description = $input['description'] ?? '';
             $status = $input['status'] ?? 'Active';
             $banner_image = $input['banner_image'] ?? '';
-            $brand_id = isset($input['brand_id']) && intval($input['brand_id']) > 0 ? intval($input['brand_id']) : null;
 
             if ($id <= 0 || empty($name)) {
                 echo json_encode([
@@ -286,9 +277,9 @@ try {
                 exit();
             }
 
-            $stmt = $conn->prepare("UPDATE category SET name = ?, description = ?, status = ?, banner_image = ?, brand_id = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE category SET name = ?, description = ?, status = ?, banner_image = ? WHERE id = ?");
             if ($stmt) {
-                $stmt->bind_param("ssssii", $name, $description, $status, $banner_image, $brand_id, $id);
+                $stmt->bind_param("ssssi", $name, $description, $status, $banner_image, $id);
                 if ($stmt->execute()) {
                     echo json_encode([
                         "status" => "success",

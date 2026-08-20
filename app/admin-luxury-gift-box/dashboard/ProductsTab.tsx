@@ -562,7 +562,7 @@ export default function ProductsManagement() {
                         <option value="">Select Brand</option>
                         {brands.map((b) => (
                           <option key={b.id} value={b.id}>
-                            {b.name} ({b.category_name || (b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
+                            {b.name}
                           </option>
                         ))}
                       </select>
@@ -710,7 +710,7 @@ export default function ProductsManagement() {
                             <option value="">Select Brand</option>
                             {brands.map((b) => (
                               <option key={b.id} value={b.id}>
-                                {b.name} ({b.category_name || (b.category_ids || (b.category_id ? [b.category_id] : [])).map((id: number) => categories.find(c => c.id == id)?.name).filter(Boolean).join(', ') || 'No Category'})
+                                {b.name}
                               </option>
                             ))}
                           </select>

@@ -8,7 +8,7 @@ export function FeaturedCollections() {
   const [dbCategories, setDbCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/categories-db?status=Active")
+    fetch("/api/categories?status=Active")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {

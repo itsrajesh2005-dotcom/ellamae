@@ -153,15 +153,13 @@ export default function BrandsTab() {
   const handleFinalBrandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const parsedCategoryId = newAllCategories ? null : (newCategoryIds[0] ?? null);
-
     const newBrandData = {
       name: newName,
       description: newDescription,
       status: newStatus,
       banner_image: newImageString,
-      category_id: parsedCategoryId,
-      category_ids: newAllCategories ? [] : newCategoryIds
+      category_id: null,
+      category_ids: []
     };
 
     try {
@@ -226,16 +224,14 @@ export default function BrandsTab() {
     if (!selectedBrand) return;
 
     try {
-      const parsedCategoryId = editAllCategories ? null : (editCategoryIds[0] ?? null);
-
       const updatePayload = {
         id: selectedBrand.id,
         name: editName,
         description: editDescription,
         status: editStatus,
         banner_image: editImageString,
-        category_id: parsedCategoryId,
-        category_ids: editAllCategories ? [] : editCategoryIds
+        category_id: null,
+        category_ids: []
       };
       
       const response = await fetch(API_URL, {
@@ -376,7 +372,7 @@ export default function BrandsTab() {
                     </td>
                     <td className="py-3.5 px-5 font-semibold text-[#2A0812] text-sm">{brand.name}</td>
                     <td className="py-3.5 px-5 text-gray-600 text-sm font-medium">
-                      {getCategoryDisplay(brand.category_ids ?? brand.category_id)}
+                      Global
                     </td>
                     <td className="py-3.5 px-5 text-gray-500 max-w-xs truncate">{brand.description}</td>
                     <td className="py-3.5 px-5">
@@ -442,21 +438,7 @@ export default function BrandsTab() {
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Description</label>
                       <textarea rows={4} value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Write a short brand description..." className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm" />
                     </div>
-                    <div className="mb-5">
-                      <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
-                      <div className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white text-[#2A0812] space-y-2">
-                        <label className="flex items-center gap-2 font-medium">
-                          <input type="checkbox" checked={newAllCategories} onChange={(e) => { setNewAllCategories(e.target.checked); if (e.target.checked) setNewCategoryIds([]); }} />
-                          All Categories
-                        </label>
-                        {!newAllCategories && categories.map((c) => (
-                          <label key={c.id} className="flex items-center gap-2">
-                            <input type="checkbox" checked={newCategoryIds.includes(Number(c.id))} onChange={(e) => setNewCategoryIds(prev => e.target.checked ? [...prev, Number(c.id)] : prev.filter(id => id !== Number(c.id)))} />
-                            {c.name}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    {/* Category Association Removed - Brands are Global */}
                     <div className="mb-8">
                       <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Initial Status</label>
                       <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white font-medium text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all text-sm">
@@ -557,21 +539,7 @@ export default function BrandsTab() {
                         <textarea rows={5} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-[#faf6f0]/50 focus:bg-white font-medium resize-none text-[#2A0812] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50 focus:border-[#d4af37] transition-all" />
                       </div>
 
-                      <div className="mb-5">
-                        <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Category Association</label>
-                        <div className="w-full p-4 border border-[#d4af37]/20 rounded-xl bg-white text-[#2A0812] space-y-2">
-                          <label className="flex items-center gap-2 font-medium">
-                            <input type="checkbox" checked={editAllCategories} onChange={(e) => { setEditAllCategories(e.target.checked); if (e.target.checked) setEditCategoryIds([]); }} />
-                            All Categories
-                          </label>
-                          {!editAllCategories && categories.map((c) => (
-                            <label key={c.id} className="flex items-center gap-2">
-                              <input type="checkbox" checked={editCategoryIds.includes(Number(c.id))} onChange={(e) => setEditCategoryIds(prev => e.target.checked ? [...prev, Number(c.id)] : prev.filter(id => id !== Number(c.id)))} />
-                              {c.name}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
+                      {/* Category Association Removed - Brands are Global */}
 
                       <div className="mb-8">
                         <label className="block font-semibold mb-2 text-xs uppercase tracking-wider text-[#2A0812]/70">Status</label>

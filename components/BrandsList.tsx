@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 
 export interface Brand {
   id: number;
@@ -21,7 +22,7 @@ export function BrandsList() {
     const loadData = async () => {
       try {
         // 1. Fetch Categories
-        const catRes = await fetch("/api/categories-db?status=all", { cache: "no-store" });
+        const catRes = await fetch("/api/categories?status=all", { cache: "no-store" });
         if (catRes.ok) {
           const catData = await catRes.json();
           let catArray: any[] = [];
@@ -32,7 +33,7 @@ export function BrandsList() {
         }
 
         // 2. Fetch All Brands without query params (Frontend handles filtering)
-        const res = await fetch("/api/brands-db?status=all", { cache: "no-store" });
+        const res = await fetch("/api/brands?status=all", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           let brandArray: any[] = [];
@@ -114,37 +115,42 @@ export function BrandsList() {
           <p className="text-center text-gray-400 text-sm">No Active Brands Found</p>
         ) : (
           <div className="flex gap-6 overflow-x-auto pb-4 pt-2 px-2 scrollbar-thin scrollbar-thumb-[#D4AF37] scrollbar-track-transparent snap-x snap-mandatory focus:outline-none">
-            {filteredBrands.map((brand) => (
-              <button
-                key={brand.id}
-                type="button"
-                onClick={() => console.log("Brand clicked:", brand.id)}
-                className="flex-shrink-0 snap-center group relative flex flex-col items-center justify-center 
-                           w-28 h-28 md:w-32 md:h-32 
-                           rounded-full 
-                           bg-[#2a080d] 
-                           border-2 border-[#D4AF37] 
-                           shadow-lg hover:shadow-[0_0_20px_rgba(212,175,55,0.7)] 
-                           transition-all duration-300 transform hover:scale-105 
-                           p-2 cursor-pointer focus:outline-none"
-              >
-                {brand.banner_image ? (
-                  <img
-                    src={brand.banner_image}
-                    alt={brand.name}
-                    className="w-10 h-10 md:w-12 md:h-12 object-contain rounded-full mb-1 pointer-events-none"
-                  />
-                ) : (
-                  <div className="w-9 h-9 md:w-10 md:h-10 bg-[#D4AF37] text-black rounded-full flex items-center justify-center font-bold text-base mb-1">
-                    {brand.name ? brand.name.charAt(0) : "B"}
-                  </div>
-                )}
+            {filteredBrands.map((brand) => {
+              const brandSlug = brand.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+              const selectedCat = categories.find((c) => String(c.id) === String(selectedCategoryId));
+              const categorySlug = selectedCat ? selectedCat.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "";
+              const brandHref = categorySlug ? `/brands/${brandSlug}?category=${categorySlug}` : `/brands/${brandSlug}`;
+              return (
+                <Link
+                  key={brand.id}
+                  href={brandHref}
+                  className="flex-shrink-0 snap-center group relative flex flex-col items-center justify-center
+                             w-28 h-28 md:w-32 md:h-32
+                             rounded-full
+                             bg-[#2a080d]
+                             border-2 border-[#D4AF37]
+                             shadow-lg hover:shadow-[0_0_20px_rgba(212,175,55,0.7)]
+                             transition-all duration-300 transform hover:scale-105
+                             p-2 cursor-pointer focus:outline-none"
+                >
+                  {brand.banner_image ? (
+                    <img
+                      src={brand.banner_image}
+                      alt={brand.name}
+                      className="w-10 h-10 md:w-12 md:h-12 object-contain rounded-full mb-1 pointer-events-none"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 md:w-10 md:h-10 bg-[#D4AF37] text-black rounded-full flex items-center justify-center font-bold text-base mb-1">
+                      {brand.name ? brand.name.charAt(0) : "B"}
+                    </div>
+                  )}
 
-                <span className="text-xs md:text-sm font-medium text-white group-hover:text-[#D4AF37] transition-colors truncate max-w-[85%]">
-                  {brand.name}
-                </span>
-              </button>
-            ))}
+                  <span className="text-xs md:text-sm font-medium text-white group-hover:text-[#D4AF37] transition-colors truncate max-w-[85%]">
+                    {brand.name}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
