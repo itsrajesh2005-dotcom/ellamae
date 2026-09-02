@@ -7,7 +7,7 @@ import Link from "next/link"
 
 const links = [
   { label: "Home", href: "/" },
-  { label: "Collections", href: "/#categories" },
+  { label: "Products", href: "/products" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Why Ellamae", href: "/#why" },
 ]
@@ -115,6 +115,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               {l.label}
               <span className="absolute -bottom-1 left-0 h-px w-0 bg-gold transition-all duration-300 group-hover:w-full" />
             </Link>
+            
           ))}
         </div>
 

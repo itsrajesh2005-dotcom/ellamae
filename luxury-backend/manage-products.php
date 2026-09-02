@@ -1,5 +1,4 @@
 <?php
-require_once __DIR__ . '/db_config.php';
 ob_start();
 ini_set('display_errors', '0');
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -13,6 +12,39 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
+}
+
+function request_payload() {
+    $raw = file_get_contents("php://input");
+    $json = json_decode($raw, true);
+    if (is_array($json)) return $json;
+
+    // Supports FormData fields while keeping JSON/base64 requests unchanged.
+    $payload = $_POST ?: [];
+    if (isset($payload['images']) && is_string($payload['images'])) {
+        $decodedImages = json_decode($payload['images'], true);
+        $payload['images'] = is_array($decodedImages) ? $decodedImages : [$payload['images']];
+    }
+    if (!isset($payload['images'])) $payload['images'] = [];
+
+    if (isset($_FILES['images'])) {
+        $files = $_FILES['images'];
+        $fileNames = is_array($files['name']) ? $files['name'] : [$files['name']];
+        $fileTemps = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
+        $fileErrors = is_array($files['error']) ? $files['error'] : [$files['error']];
+        $uploadDir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads';
+        if (!is_dir($uploadDir)) @mkdir($uploadDir, 0775, true);
+
+        foreach ($fileNames as $index => $fileName) {
+            if (($fileErrors[$index] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+            $extension = pathinfo($fileName, PATHINFO_EXTENSION);
+            $storedName = uniqid('product_', true) . ($extension ? '.' . strtolower($extension) : '');
+            if (move_uploaded_file($fileTemps[$index], $uploadDir . DIRECTORY_SEPARATOR . $storedName)) {
+                $payload['images'][] = 'uploads/' . $storedName;
+            }
+        }
+    }
+    return $payload;
 }
 
 // Disable strict error throwing for mysqli if function exists
@@ -124,14 +156,7 @@ try {
         throw new Exception("Neither MySQLi nor PDO extensions are enabled in this PHP environment.");
     }
     /*---------DATABASE CONNECTION---------*/
-    $db = getDbConfig();
-
-$conn = new mysqli(
-    $db['host'],
-    $db['user'],
-    $db['pass'],
-    $db['name']
-);
+    $conn = new mysqli("localhost", "root", "", "ellamae_db");
 
     if ($conn->connect_error) {
         throw new Exception("Database Connection Failed: " . $conn->connect_error);
@@ -156,6 +181,21 @@ $conn = new mysqli(
     $checkCategoryCol = $conn->query("SHOW COLUMNS FROM products LIKE 'category_id'");
     if ($checkCategoryCol && $checkCategoryCol->num_rows == 0) {
         $conn->query("ALTER TABLE products ADD COLUMN category_id INT NULL AFTER id");
+    }
+
+    $categoryForeignKey = $conn->query("SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME
+        FROM information_schema.KEY_COLUMN_USAGE
+        WHERE CONSTRAINT_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'products'
+          AND COLUMN_NAME = 'category_id'
+          AND REFERENCED_TABLE_NAME IS NOT NULL
+        LIMIT 1");
+    if ($categoryForeignKey && $foreignKey = $categoryForeignKey->fetch_assoc()) {
+        if ($foreignKey['REFERENCED_TABLE_NAME'] !== 'category') {
+            $foreignKeyName = str_replace('`', '', $foreignKey['CONSTRAINT_NAME']);
+            $conn->query("ALTER TABLE products DROP FOREIGN KEY `" . $foreignKeyName . "`");
+            $conn->query("ALTER TABLE products ADD CONSTRAINT products_category_fk FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL");
+        }
     }
 
     $checkBrandCol = $conn->query("SHOW COLUMNS FROM products LIKE 'brand_id'");
@@ -213,22 +253,10 @@ $conn = new mysqli(
         $search = isset($_GET['search']) ? trim($_GET['search']) : "";
         $searchId = str_replace("ELLAMAE", "", $search);
         $statusParam = isset($_GET['status']) ? trim($_GET['status']) : 'Active';
+
         $where = [];
         $params = [];
         $types = "";
-        $brandIdParam = isset($_GET['brand_id']) ? intval($_GET['brand_id']) : 0;
-        if ($brandIdParam > 0) {
-            $where[] = "p.brand_id = ?";
-            $params[] = $brandIdParam;
-            $types .= "i";
-        }
-
-        $categoryIdParam = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
-        if ($categoryIdParam > 0) {
-            $where[] = "p.category_id = ?";
-            $params[] = $categoryIdParam;
-            $types .= "i";
-        }
 
         if ($statusParam !== 'all') {
             $where[] = "p.status = ?";
@@ -244,7 +272,21 @@ $conn = new mysqli(
             $types .= "ssi";
         }
 
-        $sql = "SELECT p.id, p.category_id, p.brand_id, NULL AS brand_category_id, p.`$productTitleColumn` AS title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path
+        $brandIdParam = isset($_GET['brand_id']) ? intval($_GET['brand_id']) : 0;
+        if ($brandIdParam > 0) {
+            $where[] = "p.brand_id = ?";
+            $params[] = $brandIdParam;
+            $types .= "i";
+        }
+
+        $categoryIdParam = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
+        if ($categoryIdParam > 0) {
+            $where[] = "p.category_id = ?";
+            $params[] = $categoryIdParam;
+            $types .= "i";
+        }
+
+        $sql = "SELECT p.id, p.category_id, p.brand_id, b.category_id AS brand_category_id, p.`$productTitleColumn` AS title, p.price, p.stacks, p.description, p.status, p.image_path AS main_image, pi.image_path AS rel_image_path
                 FROM products p 
                 LEFT JOIN brands b ON p.brand_id = b.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id";
@@ -296,8 +338,7 @@ $conn = new mysqli(
     }
 
     /* ---------------- CONTROLLER ROUTER (POST/PUT/DELETE) ---------------- */
-    $rawInput = file_get_contents("php://input");
-    $input = json_decode($rawInput, true) ?? [];
+    $input = request_payload();
     
     // Auto-detect HTTP Method if action payload is missing
     $method = $_SERVER['REQUEST_METHOD'];
@@ -314,6 +355,16 @@ $conn = new mysqli(
         $brand_id = intval($input['brand_id'] ?? 0);
         $category_id = intval($input['category_id'] ?? 0);
         
+        // Auto-resolve Category ID from Brands table if category_id isn't provided
+        if ($category_id <= 0 && $brand_id > 0) {
+            $catLookup = $conn->query("SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
+                FROM brands b LEFT JOIN brand_categories bc ON b.id = bc.brand_id
+                WHERE b.id = $brand_id GROUP BY b.id");
+            if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
+                $category_id = intval($cRow['category_id']);
+            }
+        }
+
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);
         $stacks = intval($input['stacks'] ?? 0);
@@ -368,6 +419,15 @@ $conn = new mysqli(
         $id = intval($input['id'] ?? 0);
         $brand_id = intval($input['brand_id'] ?? 0);
         $category_id = intval($input['category_id'] ?? 0);
+
+        if ($category_id <= 0 && $brand_id > 0) {
+            $catLookup = $conn->query("SELECT COALESCE(b.category_id, MIN(bc.category_id)) AS category_id
+                FROM brands b LEFT JOIN brand_categories bc ON b.id = bc.brand_id
+                WHERE b.id = $brand_id GROUP BY b.id");
+            if ($catLookup && $cRow = $catLookup->fetch_assoc()) {
+                $category_id = intval($cRow['category_id']);
+            }
+        }
 
         $title = $input['title'] ?? '';
         $price = floatval($input['price'] ?? 0.00);

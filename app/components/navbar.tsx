@@ -8,6 +8,7 @@ import Link from "next/link"
 const links = [
   { label: "Home", href: "/" },
   { label: "Collections", href: "/#categories" },
+  { label: "Products", href: "/products" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Why Ellamae", href: "/#why" },
 ]
@@ -102,6 +103,9 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             ELLAMAE
           </span>
         </Link>
+        <Link href="/products" className="hover:text-[#D4AF37] transition-colors">
+  Products
+</Link>
 
         <div className="hidden items-center gap-9 md:flex">
           {links.map((l) => (

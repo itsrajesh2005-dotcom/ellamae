@@ -10,30 +10,40 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+// Ensure dynamic fetching for XAMPP database items
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 async function getProductFromDb(id: string) {
+  if (!id) return null
   const cleanId = id.replace(/^ELLAMAE/i, "")
+  
   try {
     const data = await fetchProductDetail(cleanId)
 
-    if (data && data.id) {
-      const rawImages = Array.isArray(data.images) ? data.images : [data.image_path].filter(Boolean)
-      const images = rawImages.filter(Boolean)
-      const primaryImg = images.length > 0 ? images[0] : ""
+    if (data && (data.id || data.status !== "error")) {
+      // Safely extract images matching PHP backend keys (data.images or data.image)
+      const rawImages = Array.isArray(data.images) && data.images.length > 0 
+        ? data.images 
+        : [data.image, data.image_path].filter(Boolean)
+
+      const images = rawImages.filter((img: any) => typeof img === "string" && img.trim() !== "")
+      const primaryImg = images.length > 0 ? images[0] : "/placeholder.svg"
       
       return {
-        id: data.id.toString(),
-        name: data.title || data.name || data.product_title || "",
-        price: parseFloat(data.price || "0"),
-        stacks: parseInt(data.stacks || "0", 10),
+        id: (data.id || cleanId).toString(),
+        name: data.title || data.name || data.product_title || `Product #${cleanId}`,
+        price: typeof data.price === "number" ? data.price : parseFloat(data.price || "0"),
+        stacks: typeof data.stacks === "number" ? data.stacks : parseInt(data.stacks || "0", 10),
         description: data.description || data.description_specifications || "",
         category: data.category_name || data.category || "Gifts",
         image: primaryImg,
-        galleryImages: images,
+        galleryImages: images.length > 0 ? images : ["/placeholder.svg"],
         status: data.status || "Active",
       }
     }
   } catch (err) {
-    console.error("Failed to query product from PHP backend:", err)
+    console.warn("PHP Backend fetch bypassed or failed, falling back to static products:", err)
   }
   return null
 }

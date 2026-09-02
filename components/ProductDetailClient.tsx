@@ -68,7 +68,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 Back to collection
               </button>
           <div className="rounded-[2rem] p-4 sm:p-6">
-            <div className="relative overflow-hidden rounded-[1.5rem]">
+            <div className="w-150 h-80 rounded-2xl ">
 
 
               <button
@@ -80,9 +80,9 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 <Image
                   src={activeImage}
                   alt={product.name}
-                  width={800}
-                  height={560}
-                  className="h-[280px] w-full object-cover transition duration-500 group-hover:scale-105 sm:h-[360px]"
+                  width={0}
+                  height={0}
+                  className="h-90 w-full object-cover transition duration-500 rounded-2xl "
                   priority
                 />
 
@@ -93,7 +93,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 </div>
               </button>
 
-              <div className="absolute inset-x-4 bottom-4 flex items-center justify-between gap-3">
+              <div className=" bottom-4 flex items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => setActiveView((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
@@ -114,26 +114,34 @@ export function ProductDetailClient({ product }: { product: Product }) {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-              {galleryImages.map((image, index) => (
-                <button
-                  key={`${product.id}-${image}-${index}`}
-                  type="button"
-                  onClick={() => setActiveView(index)}
-                    className={`shrink-0 rounded-[1rem] border p-1.5 transition ${activeView === index ? "border-[#5c1328] bg-[#5c1328]/15" : "border-zinc-700 bg-[#2a0812] hover:border-[#83224a]"}`}
-                  aria-label={`Show view ${index + 1}`}
-                  title={`Show view ${index + 1}`}
-                >
-                  <Image
-                    src={image}
-                    alt={`${product.name} view ${index + 1}`}
-                    width={96}
-                    height={72}
-                    className="h-14 w-20 rounded-[0.8rem] object-cover sm:h-16 sm:w-22"
-                  />
-                </button>
-              ))}
-            </div>
+            <div className=" w-150 h-70    flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
+  {galleryImages.map((image, index) => {
+    const isSelected = activeView === index
+
+    return (
+      <button
+        key={`${product.id}-${image}-${index}`}
+        type="button"
+        onClick={() => setActiveView(index)}
+        className={`relative flex-shrink-0 h-16 w-20 overflow-hidden rounded-xl transition-all duration-300 ${
+          isSelected
+            ? "border-2 border-[#d4af37] shadow-[0_0_12px_rgba(212,175,55,0.5)] scale-105"
+            : "border border-transparent opacity-60 hover:opacity-100"
+        }`}
+        aria-label={`Show view ${index + 1}`}
+        title={`Show view ${index + 1}`}
+      >
+        <Image
+          src={image}
+          alt={`${product.name} view ${index + 1}`}
+          width={100}
+          height={72}
+          className="h-full w-full object-cover"
+        />
+      </button>
+    )
+  })}
+</div>
           </div>
 
           <div className="flex flex-col gap-5">
@@ -151,7 +159,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 )}
               </div>
 
-              <p className="mt-5 text-[0.95rem] leading-8 text-[#4b4b4b]">{product.description}</p>
+              <p className="mt-5 text-[0.95rem]  leading-8 text-[#4b4b4b]">{product.description}</p>
 
               <div className="mt-6 pt-5">
                 <h2 className="text-[0.9rem] font-semibold uppercase tracking-[0.25em] text-[#6b3343]">Why it stands out</h2>
@@ -214,12 +222,12 @@ className="relative w-full max-w-6xl overflow-hidden rounded-[1.75rem] border bo
                 <span className="text-xs uppercase tracking-[0.25em] text-[#e3c4cc]">Full View</span>
               </div>
 
-              <div className="relative bg-[#2a0812] p-2 sm:p-4">
+              <div className="relative bg-[#FFFFFF] p-2 sm:p-4">
                 <Image
                   src={activeImage}
                   alt={product.name}
-                  width={640}
-                  height={480}
+                  width={800}
+                  height={600}
                   className="max-h-[75vh] w-full rounded-[1.25rem] object-contain"
                 />
 
