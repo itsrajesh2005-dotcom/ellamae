@@ -73,7 +73,7 @@ export function Navbar({ variant = "hero" }: NavbarProps) {
   }
 
   const getGlassStyle = () => {
-    if (variant === "hero") {
+    if (variant === "light") {
       return "bg-[#410d1c]/100 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]"
     }
     return scrolled 
@@ -193,7 +193,7 @@ export function Navbar({ variant = "hero" }: NavbarProps) {
                   px-4
                   py-4
                   text-white/90
-                  hover:bg-white/10
+                  hover:bg-black/10
                   transition-all
                 "
                     >

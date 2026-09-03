@@ -66,7 +66,7 @@ export default async function ProductsListPage() {
 
   return (
     <div className="min-h-screen bg-[#fcfbf7] text-black/80 transition-colors duration-300">
-      <Navbar variant="hero" />
+      <Navbar variant="light" />
 
       <main className="max-w-7xl mx-auto py-28 px-6 lg:px-4 space-y-16">
 

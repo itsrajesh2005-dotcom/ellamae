@@ -50,9 +50,9 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
   return (
     <div className="min-h-screen bg-white text-[#1f1f1f]">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto flex max-w-7xl text-[#1f1f1f] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
         <div className="flex flex-wrap items-start justify-end gap-3 rounded-[1.75rem] bg-[#fff8dc]/40 p-3 shadow-[0_10px_30px_rgba(212,175,55,0.08)]">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/40 bg-[#fff8dc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#b8860b]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/40 bg-[#00000] px-5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#b8860b]">
             <Sparkles className="h-3.5 w-3.5" />
             {product.category}
           </div>
