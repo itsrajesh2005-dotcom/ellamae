@@ -62,7 +62,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
           <h3 className="font-serif text-xl font-medium leading-snug tracking-wide text-amber-900 transition-colors duration-300 group-hover:text-amber-600">
             {product.name}
           </h3>
-          <p className="mt-2 text-sm leading-relaxed text-stone-600 line-clamp-2 min-h-[40px]">
+          <p className="mt-2 text-sm leading-relaxed text-white line-clamp-2 min-h-[40px]">
             {product.description}
           </p>
         </div>

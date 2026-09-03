@@ -21,7 +21,7 @@ interface NavbarProps {
   variant?: "dark" | "light" | "hero"
 }
 
-export function Navbar({ variant = "dark" }: NavbarProps) {
+export function Navbar({ variant = "hero" }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -51,20 +51,20 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
   // Determine text color based on variant and scroll state
   const getTextColor = () => {
-    return "text-black/80 hover:text-black border-black/5"
+    return "text-white hover:text-white border-white/20 hover:border-white/20"
   }
 
   const getLogoColor = () => {
-    return "text-black/80 hover:text-black"
+    return "text-white hover:text-white border-white/20 hover:border-white/20"
   }
 
   const getLinkColor = () => {
-    return "text-black/80 hover:text-black"
+    return "text-white hover:text-white border-white/20 hover:border-white/20"
   }
 
   const getSocialIconClass = () => {
     const base = "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300"
-    return `${base} border border-black/90 text-black/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+    return `${base} border border-white text-white hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
   }
 
   const getMobileButtonClass = () => {
@@ -73,20 +73,20 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   }
 
   const getGlassStyle = () => {
-    if (variant === "light") {
-      return "bg-[#2a0812] border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]"
+    if (variant === "hero") {
+      return "bg-[#410d1c]/100 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]"
     }
     return scrolled 
-      ? "bg-[#ffffff]/80 backdrop-blur-xl border-b border-/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]" 
+      ? "bg-[#410d1c]/100 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]" 
       : "bg-transparent"
   }
 
   const getMobileMenuBg = () => {
-    return "border-t border-gold/15 bg-card/90 backdrop-blur-xl"
+    return "border-t border-white/15 bg-card/90 "
   }
 
   const getMobileLinkColor = () => {
-    return "text-foreground/80 hover:bg-accent hover:text-foreground"
+    return "text-foreground/80 hover:bg-accent hover:text-black"
   }
 
   return (
