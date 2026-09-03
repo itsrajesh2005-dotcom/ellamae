@@ -29,10 +29,10 @@ export function CategoryTabs({
   }, [selectedCategory])
 
   return (
-    <div className="relative w-full border-b border-gold/10 pb-4">
+    <div className="relative  border-b border-gold/10 pb-4">
       <div
         ref={containerRef}
-        className="flex w-full items-center gap-3 overflow-x-auto pb-2 scrollbar-none md:justify-center md:pb-0"
+        className="flex items-center gap-3 pb-2 scrollbar-none md:justify-center md:pb-1"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {categories.map((category) => {
@@ -43,10 +43,10 @@ export function CategoryTabs({
               key={category}
               onClick={() => setSelectedCategory(category)}
               data-active={isActive}
-              className={`relative z-10 shrink-0 cursor-pointer rounded-full px-6 py-2.5 text-sm font-medium tracking-wide transition-all duration-300 ${
+              className={`relative z-10 shrink-0 cursor-pointer rounded-full px-6 py-20 text-sm font-medium-black tracking-wide transition-all duration-300 ${
                 isActive
-                  ? "text-ivory font-semibold"
-                  : "text-foreground/70 hover:text-foreground hover:bg-gold/5"
+                  ? "text-black font-semibold"
+                  : "text-black/70 hover:text-foreground hover:#410d1c"
               }`}
             >
               {/* Glass background for non-active or border */}
@@ -56,7 +56,7 @@ export function CategoryTabs({
               {isActive && (
                 <motion.span
                   layoutId="activeCategoryIndicator"
-                  className="absolute inset-0 rounded-full bg-white shadow-[0_4px_15px_rgba(0,0,0,0.1)] -z-10"
+                  className="absolute inset-0 rounded-full bg-black shadow-[0_4px_15px_rgba(0,0,0,0.1)] -z-10"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}

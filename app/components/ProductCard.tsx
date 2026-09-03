@@ -30,11 +30,11 @@ export function ProductCard({ product, index }: ProductCardProps) {
         ease: [0.215, 0.61, 0.355, 1],
       }}
       whileHover={{ y: -8 }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-gold/15 bg-card/45 shadow-[0_8px_30px_rgba(180,140,90,0.04)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_20px_50px_rgba(212,175,55,0.12)] hover:border-gold/30"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-stone-200/80 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-[0_20px_40px_rgba(180,140,90,0.15)] hover:border-amber-400/40"
     >
       <div>
-        {/* Product Image */}
-        <div className="relative aspect-[4/5] overflow-hidden rounded-t-[23px] bg-beige/30">
+        {/* Product Image Wrapper - Smoke Overlay Removed */}
+        <div className="relative aspect-[4/5] overflow-hidden rounded-t-[23px] bg-stone-50">
           <Image
             src={product.image}
             alt={product.name}
@@ -43,28 +43,26 @@ export function ProductCard({ product, index }: ProductCardProps) {
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             priority={index < 4}
           />
-          {/* Gradient vignette */}
-          <div className="absolute inset-0 bg-gradient-to-t from-card/85 via-transparent to-transparent opacity-80" />
 
           {/* Floating Badges */}
-          <div className="absolute top-4 left-4 flex flex-col gap-2">
-            <span className="rounded-full bg-card/80 backdrop-blur-md px-3.5 py-1 text-[10px] font-semibold tracking-wider text-gold border border-gold/20 uppercase">
+          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+            <span className="rounded-full bg-white/90 backdrop-blur-md px-3.5 py-1 text-[10px] font-bold tracking-wider text-amber-800 border border-amber-200/60 uppercase shadow-sm">
               {product.category.replace(" Gifts", "").replace(" & Lifestyle", "")}
             </span>
             {product.tag && (
-              <span className="rounded-full bg-gradient-to-r from-gold to-gold-soft px-3 py-1 text-[10px] font-bold tracking-wider text-ivory shadow-[0_2px_8px_rgba(212,175,55,0.2)] uppercase">
+              <span className="rounded-full bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 px-3 py-1 text-[10px] font-bold tracking-wider text-white shadow-sm uppercase">
                 {product.tag}
               </span>
             )}
           </div>
         </div>
 
-        {/* Product Details */}
+        {/* Product Details - Clean Dark Text */}
         <div className="p-6">
-          <h3 className="font-serif text-xl font-light leading-snug tracking-wide text-foreground transition-colors duration-300 group-hover:text-gold">
+          <h3 className="font-serif text-xl font-medium leading-snug tracking-wide text-amber-900 transition-colors duration-300 group-hover:text-amber-600">
             {product.name}
           </h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground/90 line-clamp-2 min-h-[40px]">
+          <p className="mt-2 text-sm leading-relaxed text-stone-600 line-clamp-2 min-h-[40px]">
             {product.description}
           </p>
         </div>
@@ -72,10 +70,10 @@ export function ProductCard({ product, index }: ProductCardProps) {
 
       {/* Price + CTA */}
       <div className="p-6 pt-0">
-        <div className="flex items-center justify-between border-t border-gold/10 pt-4 gap-3">
+        <div className="flex items-center justify-between border-t border-stone-100 pt-4 gap-3">
           <div className="flex flex-col shrink-0">
-            <span className="text-[10px] tracking-[0.2em] text-muted-foreground/60 uppercase">Price</span>
-            <span className="text-xl font-medium text-foreground tracking-tight">{formattedPrice}</span>
+            <span className="text-[10px] tracking-[0.2em] text-stone-400 font-semibold uppercase">Price</span>
+            <span className="text-xl font-bold text-stone-900 tracking-tight">{formattedPrice}</span>
           </div>
 
           <a
@@ -83,7 +81,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Enquire about ${product.name} on WhatsApp`}
-            className="flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-gold via-[#c5a02e] to-gold px-5 py-2.5 text-[11px] font-semibold tracking-wider text-ivory shadow-[0_4px_15px_rgba(212,175,55,0.25)] transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_8px_25px_rgba(212,175,55,0.4)] active:scale-95"
+            className="flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 px-5 py-2.5 text-[11px] font-semibold tracking-wider text-white shadow-[0_4px_15px_rgba(217,119,6,0.25)] transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_8px_25px_rgba(217,119,6,0.4)] active:scale-95"
           >
             {/* WhatsApp SVG */}
             <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current shrink-0" xmlns="http://www.w3.org/2000/svg">

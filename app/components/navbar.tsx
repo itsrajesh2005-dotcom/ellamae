@@ -17,7 +17,7 @@ interface NavbarProps {
   /** 
    * "dark"  → page starts with a dark hero (white text at top, glass on scroll)
    * "light" → page has a light background (dark text always)
-   * "hero"  → page has a dark hero but scrollsp into a light section (collection pages)
+   * "hero"  → page has a dark hero but scrolls into a light section
    */
   variant?: "dark" | "light" | "hero"
 }
@@ -46,48 +46,42 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
       }
       setOpen(false)
     }
-    // For all other cases (non-home pages clicking /#categories, etc.),
-    // let the default <Link> navigation happen — it will go to homepage + hash
   }
 
-  // Determine text color based on variant and scroll state
-  const getTextColor = () => {
-    return "text-white"
-  }
-
+  // Dynamic colors based on scroll state & variant
   const getLogoColor = () => {
-    return "text-white/80 hover:text-white"
+    if (variant === "light") return "text-[#410d1c] hover:text-[#d4af37]"
+    return scrolled ? "text-white hover:text-[#d4af37]" : "text-white/90 hover:text-white"
   }
 
   const getLinkColor = () => {
-    return "text-white/80 hover:text-white"
+    if (variant === "light") return "text-[#410d1c]/80 hover:text-[#410d1c]"
+    return scrolled ? "text-white/90 hover:text-white" : "text-white/80 hover:text-white"
   }
 
   const getSocialIconClass = () => {
     const base = "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300"
-    return `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+    if (variant === "light") {
+      return `${base} border-[#410d1c]/20 text-[#410d1c] hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+    }
+    return `${base} border-white/20 text-black/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
   }
 
   const getMobileButtonClass = () => {
     const base = "inline-flex h-10 w-10 items-center justify-center rounded-full border md:hidden transition-all duration-300"
+    if (variant === "light") {
+      return `${base} border-[#410d1c]/20 text-[#410d1c]`
+    }
     return `${base} border-white/20 text-white`
   }
 
   const getGlassStyle = () => {
     if (variant === "light") {
-      return "bg-[#2a0812] border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]"
+      return "bg-white/90 backdrop-blur-xl border-b border-black/5 shadow-sm"
     }
     return scrolled 
-      ? "bg-[#2a0812]/80 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]" 
+      ? "bg-[white]/90 backdrop-blur-xl border-b border-gold/10 shadow-[0_8px_30px_rgba(42,8,18,0.25)]" 
       : "bg-transparent"
-  }
-
-  const getMobileMenuBg = () => {
-    return "border-t border-gold/15 bg-card/90 backdrop-blur-xl"
-  }
-
-  const getMobileLinkColor = () => {
-    return "text-foreground/80 hover:bg-accent hover:text-foreground"
   }
 
   return (
@@ -98,15 +92,14 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
       className={`fixed inset-x-0 top-0 z-[60] transition-all duration-500 ${getGlassStyle()}`}
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+        {/* Brand Logo */}
         <Link href="/" className="flex flex-col leading-none" data-cursor="pointer">
           <span className={`font-serif text-2xl font-semibold tracking-[0.35em] transition-colors ${getLogoColor()}`}>
             ELLAMAE
           </span>
         </Link>
-        <Link href="/products" className="hover:text-[#D4AF37] transition-colors">
-  Products
-</Link>
 
+        {/* Desktop Navigation Links */}
         <div className="hidden items-center gap-9 md:flex">
           {links.map((l) => (
             <Link
@@ -117,11 +110,12 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               className={`group relative px-3 py-2 text-sm tracking-wide transition-all ${getLinkColor()}`}
             >
               {l.label}
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gold transition-all duration-300 group-hover:w-full" />
+              <span className="absolute -bottom-1 left-0 h-px w-0 bg-[#d4af37] transition-all duration-300 group-hover:w-full" />
             </Link>
           ))}
         </div>
 
+        {/* Right Action Icons & Mobile Menu Button */}
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-3">
             <a href="https://instagram.com/ellamae_gifts_" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Instagram" className={getSocialIconClass()}>
@@ -140,6 +134,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
             </a>
           </div>
+
           <button
             data-cursor="pointer"
             aria-label="Toggle menu"
@@ -151,10 +146,10 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
         </div>
       </nav>
 
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {open && (
           <>
-            {/* Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -163,7 +158,6 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               onClick={() => setOpen(false)}
             />
 
-            {/* Menu Card */}
             <motion.div
               initial={{ opacity: 0, y: -20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -173,13 +167,8 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="
-            bg-[#2a0812]/95
-            backdrop-blur-2xl
-            p-4
-          "
+                className="bg-[#2a0812]/95 backdrop-blur-2xl p-4 rounded-3xl border border-white/10"
               >
-                {/* Links */}
                 <div className="space-y-2">
                   {links.map((l) => (
                     <Link
@@ -189,16 +178,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                         handleLinkClick(e, l.href)
                         setOpen(false)
                       }}
-                      className="
-                  flex items-center
-                  justify-between
-                  rounded-2xl
-                  px-4
-                  py-4
-                  text-white/90
-                  hover:bg-white/10
-                  transition-all
-                "
+                      className="flex items-center justify-between rounded-2xl px-4 py-4 text-white/90 hover:bg-white/10 transition-all"
                     >
                       <span>{l.label}</span>
                       <ArrowRight className="h-4 w-4 text-[#d4af37]" />
@@ -206,32 +186,18 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   ))}
                 </div>
 
-                {/* CTA */}
                 <div className="mt-5 rounded-2xl bg-gradient-to-r from-[#d4af37]/20 to-[#d4af37]/5 border border-[#d4af37]/20 p-4">
                   <p className="text-white text-sm font-medium">
                     Looking for a custom gift box?
                   </p>
-
                   <p className="text-white/60 text-xs mt-1">
                     Personalized gifts for every occasion.
                   </p>
-
                   <a
                     href="https://wa.me/919790666769"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="
-      mt-4
-      flex
-      items-center
-      justify-center
-      gap-2
-      rounded-xl
-      bg-[#d4af37]
-      py-3
-      font-semibold
-      text-[#410d1c]
-    "
+                    className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#d4af37] py-3 font-semibold text-[#410d1c]"
                   >
                     <Gift className="h-4 w-4" />
                     Create Your Gift Box

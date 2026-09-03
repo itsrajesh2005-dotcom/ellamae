@@ -51,25 +51,25 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
   // Determine text color based on variant and scroll state
   const getTextColor = () => {
-    return "text-white"
+    return "text-black/80 hover:text-black border-black/5"
   }
 
   const getLogoColor = () => {
-    return "text-white/80 hover:text-white"
+    return "text-black/80 hover:text-black"
   }
 
   const getLinkColor = () => {
-    return "text-white/80 hover:text-white"
+    return "text-black/80 hover:text-black"
   }
 
   const getSocialIconClass = () => {
     const base = "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300"
-    return `${base} border-white/20 text-white/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
+    return `${base} border border-black/90 text-black/80 hover:bg-[#d4af37] hover:border-[#d4af37] hover:text-white`
   }
 
   const getMobileButtonClass = () => {
     const base = "inline-flex h-10 w-10 items-center justify-center rounded-full border md:hidden transition-all duration-300"
-    return `${base} border-white/20 text-white`
+    return `${base} border-white/20 text-black/80`
   }
 
   const getGlassStyle = () => {
@@ -77,7 +77,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
       return "bg-[#2a0812] border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]"
     }
     return scrolled 
-      ? "bg-[#2a0812]/80 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]" 
+      ? "bg-[#ffffff]/80 backdrop-blur-xl border-b border-/5 shadow-[0_8px_30px_rgba(42,8,18,0.15)]" 
       : "bg-transparent"
   }
 
@@ -96,7 +96,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
       className={`fixed inset-x-0 top-0 z-[60] transition-all duration-500 ${getGlassStyle()}`}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+      <nav className=" flex  items-center justify-between px-6  lg:px-10   py-4  border-b-1 border-black-12 ">
         <Link href="/" className="flex flex-col leading-none" data-cursor="pointer">
           <span className={`font-serif text-2xl font-semibold tracking-[0.35em] transition-colors ${getLogoColor()}`}>
             ELLAMAE
@@ -122,7 +122,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-3">
             <a href="https://instagram.com/ellamae_gifts_" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Instagram" className={getSocialIconClass()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 "><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
             </a>
             <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" data-cursor="pointer" aria-label="Facebook" className={getSocialIconClass()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>

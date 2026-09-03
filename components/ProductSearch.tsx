@@ -19,7 +19,7 @@ export function ProductSearch({ value, onChange }: ProductSearchProps) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Search gifts..."
-          className="w-full bg-transparent text-sm font-sans tracking-wide text-foreground placeholder:text-muted-foreground/60 outline-none"
+          className="w-full bg-transparent text-sm font-sans tracking-wide text-amber-900 placeholder:text-muted-foreground/60 outline-none"
         />
 
         {value && (

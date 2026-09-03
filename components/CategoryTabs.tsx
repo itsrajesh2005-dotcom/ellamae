@@ -32,7 +32,7 @@ export function CategoryTabs({
     <div className="relative w-full border-b border-gold/10 pb-4">
       <div
         ref={containerRef}
-        className="flex w-full items-center gap-3 overflow-x-auto pb-2 scrollbar-none md:justify-center md:pb-0"
+        className="flex w-full items-center gap-3 overflow-x-auto  pb-2 scrollbar-0 md:justify-center md:pb-0"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {categories.map((category) => {
@@ -43,20 +43,20 @@ export function CategoryTabs({
               key={category}
               onClick={() => setSelectedCategory(category)}
               data-active={isActive}
-              className={`relative z-10 shrink-0 cursor-pointer rounded-full px-6 py-2.5 text-sm font-medium tracking-wide transition-all duration-300 ${
+              className={`relative z-1 shrink-0 cursor-pointer   ms-2  rounded-full px-6 py-2.5 text-sm font-medium tracking-wide transition-all duration-300 ${
                 isActive
-                  ? "text-ivory font-semibold"
-                  : "text-foreground/70 hover:text-foreground hover:bg-gold/5"
+                  ? "text-amber-900 font-semibold"
+                  : "text-amber-900 hover:text-foreground hover:bg-[#2b030e]"
               }`}
             >
               {/* Glass background for non-active or border */}
-              <span className="absolute inset-0 rounded-full border border-gold/15 bg-card/45 backdrop-blur-sm -z-10" />
+              <span className="absolute inset-0 rounded-full border border-gold/15 bg-card/45-z-10" />
 
               {/* Slider highlight */}
               {isActive && (
                 <motion.span
                   layoutId="activeCategoryIndicator"
-                  className="absolute inset-0 rounded-full bg-white shadow-[0_4px_15px_rgba(0,0,0,0.1)] -z-10"
+                  className="absolute inset-0 rounded-full bg-[#2b030e]] -z-10 "
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}

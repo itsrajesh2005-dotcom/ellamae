@@ -34,15 +34,15 @@ export function ProductSort({ value, onChange }: ProductSortProps) {
   }, [])
 
   return (
-    <div ref={dropdownRef} className="relative z-20 w-full sm:w-56">
+    <div ref={dropdownRef} className="relative z-20 w-full sm:w-56 text-red-50">
       {/* Dropdown Trigger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between rounded-full border border-gold/20 bg-card/60 backdrop-blur-md px-5 py-2.5 text-sm font-medium tracking-wide text-foreground transition-all duration-300 hover:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+        className="flex w-full items-center justify-between rounded-full border border-gold/20 bg-card/60 backdrop px-5 py-2.5 text-sm font-medium tracking-wide text-amber-900 duration-300 hover:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
       >
         <span className="truncate">Sort: {SORT_LABELS[value]}</span>
         <ChevronDown
-          className={`ml-2 h-4 w-4 text-gold transition-transform duration-300 ${
+          className={`ml-2 h-4 w-4 text-green transition-transform duration-300 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -70,7 +70,7 @@ export function ProductSort({ value, onChange }: ProductSortProps) {
                   className={`flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-sm transition-colors duration-200 cursor-pointer ${
                     isSelected
                       ? "bg-gold/10 text-gold font-medium"
-                      : "text-foreground/80 hover:bg-gold/5 hover:text-foreground"
+                      : "text-black/80 hover:bg-gold/5 hover:text-foreground"
                   }`}
                 >
                   <span>{SORT_LABELS[option]}</span>

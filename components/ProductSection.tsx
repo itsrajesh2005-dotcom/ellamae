@@ -21,27 +21,26 @@ export function ProductSection() {
   useEffect(() => {
     async function loadBackendData() {
       try {
+        let catMap: Record<number, string> = {};
+
+        // 1. Fetch Categories
         const catRes = await fetch("/api/categories?status=Active");
         if (catRes.ok) {
           const catData = await catRes.json();
           if (Array.isArray(catData) && catData.length > 0) {
             setDbCategories(catData);
+            // Build catMap directly from catData instead of cloning catRes
+            catData.forEach((c: any) => {
+              catMap[c.id] = c.name;
+            });
           }
         }
 
+        // 2. Fetch Products
         const giftsRes = await fetch("/api/products?status=Active");
         if (giftsRes.ok) {
           const giftsData = await giftsRes.json();
           if (Array.isArray(giftsData) && giftsData.length > 0) {
-            // Map db categories by ID for quick lookup
-            let catMap: Record<number, string> = {};
-            if (catRes.ok) {
-              const catData = await catRes.clone().json().catch(() => []);
-              if (Array.isArray(catData)) {
-                catData.forEach((c: any) => { catMap[c.id] = c.name; });
-              }
-            }
-
             const formattedGifts: Product[] = giftsData.map((g: any) => {
               const primaryImg = (() => {
                 if (Array.isArray(g.images) && g.images.length > 0 && g.images[0]) return g.images[0];
@@ -126,10 +125,10 @@ export function ProductSection() {
   }, [allProducts, selectedCategory, searchQuery, sortBy])
 
   return (
-    <section id="signature-collection" className="relative  px-6 py-24 lg:px-10 overflow-hidden">
+    <section id="signature-collection" className="bg-white px-3 py-20 lg:px-6 ">
       {/* Background soft ambient gold glow blobs */}
-      <div className="absolute top-1/4 -left-20 -z-10 h-72 w-72 rounded-full bg-gold/5 blur-[80px]" />
-      <div className="absolute bottom-1/4 -right-20 -z-10 h-72 w-72 rounded-full bg-gold-soft/5 blur-[80px]" />
+      {/* <div className="absolute top-1/4 -left-20 -z-10 h-72 w-60 rounded-full bg-gold/5 blur-[80px]" />
+      <div className="absolute bottom-1/4 -right-20 -z-10 h-72 w-20 rounded-full bg-gold-soft/5" /> */}
 
       {/* Header Info */}
       <Reveal>
@@ -138,12 +137,9 @@ export function ProductSection() {
             <Sparkles className="h-3.5 w-3.5" />
             <span>Exquisite Catalogue</span>
           </div>
-          <h2 className="mt-5 text-balance font-serif text-4xl font-light text-foreground sm:text-5xl md:text-6xl leading-tight">
+          <h2 className="mt-5 text-balance font-serif text-4xl font-light text-black sm:text-5xl md:text-6xl leading-tight">
             Explore Our <span className="italic text-gold">Signature</span> Collection
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-pretty leading-relaxed text-muted-foreground">
-            Discover thoughtfully curated gifts designed to create unforgettable memories.
-          </p>
         </div>
       </Reveal>
 
@@ -180,8 +176,7 @@ export function ProductSection() {
         ) : (
           <Reveal>
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              {/* Elegant Luxury Empty State Illustration */}
-              <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full border border-gold/20 bg-gold/5 text-gold">
+              <div className="relative mb-6 flex h-24 w-20 items-center justify-center rounded-full border border-gold/20 bg-gold/5 text-gold">
                 <svg
                   className="h-10 w-10 animate-pulse"
                   fill="none"
